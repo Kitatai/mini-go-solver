@@ -57,6 +57,7 @@ public:
     std::uint64_t filled_memo_entries() const { return nodes_ - hits_; }
     std::uint64_t nodes() const { return nodes_; }
     std::uint64_t hits() const { return hits_; }
+    std::uint64_t pruned_opponent_capture_replies() const { return pruned_opponent_capture_replies_; }
     std::uint64_t learning_updates() const { return evaluator_.updates(); }
 
     void print_sparse_stats() const {
@@ -101,12 +102,10 @@ private:
     struct OrderedMove {
         Board move;
         int opp_legal_count;
-        bool gives_opp_win;
         int pattern_order_score;
     };
 
     static bool better_move(const OrderedMove& a, const OrderedMove& b) {
-        if (a.gives_opp_win != b.gives_opp_win) return !a.gives_opp_win;
         if (a.pattern_order_score != b.pattern_order_score) return a.pattern_order_score > b.pattern_order_score;
         if (a.opp_legal_count != b.opp_legal_count) return a.opp_legal_count < b.opp_legal_count;
         return a.move < b.move;
@@ -183,6 +182,11 @@ private:
                     Board next_me = me | move;
                     Board next_empty = mask_ & ~(next_me | opp);
                     Board opp_wins = minigo::capture_candidates(next_me, next_empty, mask_);
+                    if (opp_wins != 0) {
+                        ++pruned_opponent_capture_replies_;
+                        continue;
+                    }
+
                     Board opp_legal = minigo::non_capture_legal_moves_from_empty(opp, next_empty, mask_) | opp_wins;
                     int child_opp_view_score =
                         base_opp_view_score + evaluator_.delta_add_opp_stone(opp, me, n_, move_pos);
@@ -191,7 +195,6 @@ private:
                     ordered[ordered_count++] = {
                         move,
                         std::popcount(opp_legal),
-                        opp_wins != 0,
                         pattern_order_score,
                     };
                 }
@@ -259,4 +262,5 @@ private:
     minigo::SparseMemo sparse_memo_;
     std::uint64_t nodes_ = 0;
     std::uint64_t hits_ = 0;
+    std::uint64_t pruned_opponent_capture_replies_ = 0;
 };

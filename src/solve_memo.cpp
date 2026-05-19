@@ -107,6 +107,7 @@ void print_run_stats(const Solver& solver, bool use_sparse) {
               << " allocated_bytes=" << solver.memo_bytes()
               << " filled_memo_entries=" << filled
               << " filled_ratio=" << filled_ratio
+              << " pruned_opponent_capture_replies=" << solver.pruned_opponent_capture_replies()
               << " learning_updates=" << solver.learning_updates() << '\n';
     solver.print_sparse_stats();
 }

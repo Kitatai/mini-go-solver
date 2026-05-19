@@ -2,12 +2,13 @@
 
 ## 盤面表現
 
-現行ソルバーは `N <= 32` を対象とする。
+現行ソルバーは `N <= 64` を対象とする。32bit版の `solve_memo` と64bit版の `solve_memo64` を分けている。
 
-盤面は 2 つの 32bit bitboard で表す。
+盤面は黒石・白石それぞれの bitboard で表す。
 
 ```cpp
-using Board = std::uint32_t;
+using Board32 = std::uint32_t; // solve_memo
+using Board64 = std::uint64_t; // solve_memo64
 
 Board black; // 黒石がある位置の bit が 1
 Board white; // 白石がある位置の bit が 1
@@ -36,7 +37,7 @@ Board white; // 白石がある位置の bit が 1
 
 ## 探索
 
-`solve_memo` は negamax 型の勝敗探索を行う。
+`solve_memo` と `solve_memo64` は negamax 型の勝敗探索を行う。
 
 - 捕獲手が存在する局面は即勝ち。
 - 合法手が存在しない局面は負け。
@@ -54,7 +55,7 @@ Board white; // 白石がある位置の bit が 1
 
 次の相手番では、相手はその唯一の呼吸点に着手できる。この着手は自分の連の呼吸点を 0 にする捕獲手なので、相手が即勝利する。
 
-そのため、現在の局面に自分の捕獲手がない場合、着手後に相手の捕獲手が存在する候補手は、勝ち手になり得ない。`solve_memo` はこのような手を再帰探索に渡さずに捨てる。
+そのため、現在の局面に自分の捕獲手がない場合、着手後に相手の捕獲手が存在する候補手は、勝ち手になり得ない。メモ化つきソルバーはこのような手を再帰探索に渡さずに捨てる。
 
 ## メモ化
 
@@ -70,7 +71,9 @@ rank key は、各マスの状態を次の三値として左から順に見た�
 2 = 白石
 ```
 
-`N <= 32` で黒白が隣接しない列は最大でも `2140758220993 < 2^41` 個である。勝敗値 2bit を足しても 43bit で足りるため、1 entry を 6 bytes に詰めている。
+`N <= 32` で黒白が隣接しない列は最大でも `2140758220993 < 2^41` 個である。勝敗値 2bit を足しても 43bit で足りるため、32bit版は 1 entry を 6 bytes に詰めている。
+
+`N <= 64` では rank key が 64bit に収まらないため、64bit版は `unsigned __int128` で key を扱う。黒白が隣接しない64マス列は 128bit には収まり、勝敗値 2bit と合わせて 1 entry を 11 bytes に詰めている。
 
 ```text
 entry = (contact_free_rank << 2) | value
@@ -88,7 +91,9 @@ rank key は 8 マス単位の事前計算テーブルで変換する。
 ## ファイル構成
 
 - `src/solve_memo.cpp`: コマンドライン引数の処理と実行制御
+- `src/solve_memo64.cpp`: 64bit版のコマンドライン引数の処理と実行制御
 - `src/solver.hpp`: メモ化つき探索本体
+- `src/solver64.hpp`: 64bit版のメモ化つき探索本体
 - `src/ranker.hpp`: dense memo 用の状態数計算と rank 計算
 - `src/memo_table.hpp`: dense/sparse メモテーブル
 - `src/pattern_evaluator.hpp`: ムーブオーダリング用の5マス窓評価

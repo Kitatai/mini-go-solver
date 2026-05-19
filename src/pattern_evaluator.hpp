@@ -7,8 +7,7 @@
 #include <fstream>
 #include <string>
 
-using Board = minigo::Board32;
-
+template <class Board>
 class PatternEvaluator {
 public:
     explicit PatternEvaluator(bool enabled, bool batch_updates, std::uint32_t sample_rate)
@@ -69,7 +68,7 @@ public:
         if ((seen_ % sample_rate_) != 0) return;
 
         int target = turn_player_wins ? 1 : -1;
-        int ids[32] = {};
+        int ids[64] = {};
         int score = 0;
         int windows = std::max(1, n - 4);
         Board me = black_turn ? black : white;
@@ -161,3 +160,6 @@ private:
     std::uint64_t updates_ = 0;
     inline static int window_table_[1024] = {};
 };
+
+using PatternEvaluator32 = PatternEvaluator<minigo::Board32>;
+using PatternEvaluator64 = PatternEvaluator<minigo::Board64>;

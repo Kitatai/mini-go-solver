@@ -10,24 +10,19 @@
 #include <cstdint>
 #include <iostream>
 #include <limits>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
-class Solver {
+class Solver64 {
 public:
-    explicit Solver(int n, bool use_symmetry, bool use_sparse, bool use_learning, bool batch_learning, std::uint32_t learn_sample, std::uint64_t sparse_initial_capacity)
+    explicit Solver64(int n, bool use_symmetry, bool use_learning, bool batch_learning, std::uint32_t learn_sample, std::uint64_t sparse_initial_capacity)
         : n_(n),
           use_symmetry_(use_symmetry),
-          use_sparse_(use_sparse),
           evaluator_(use_learning, batch_learning, learn_sample),
           mask_(minigo::board_mask<Board>(n)),
-          ranker_(n),
           canonical_ranker_(n),
-          states_(checked_u64(use_symmetry_ ? canonical_ranker_.total_states() : ranker_.total_states())),
-          dense_memo_(use_sparse ? 0 : states_),
-          sparse_memo_(n, use_sparse ? initial_sparse_capacity(states_, sparse_initial_capacity) : 0,
-                       use_sparse ? sparse_initial_capacity : 0) {}
+          states_(use_symmetry_ ? canonical_ranker_.total_states() : Ranker(n).total_states()),
+          sparse_memo_(n, initial_sparse_capacity(states_, sparse_initial_capacity), sparse_initial_capacity) {}
 
     bool first_wins_after(int first) {
         Board black = Board{1} << first;
@@ -52,8 +47,8 @@ public:
         return result;
     }
 
-    std::uint64_t states() const { return states_; }
-    std::size_t memo_bytes() const { return use_sparse_ ? sparse_memo_.bytes() : dense_memo_.bytes(); }
+    Count states() const { return states_; }
+    std::size_t memo_bytes() const { return sparse_memo_.bytes(); }
     std::uint64_t filled_memo_entries() const { return nodes_ - hits_; }
     std::uint64_t nodes() const { return nodes_; }
     std::uint64_t hits() const { return hits_; }
@@ -61,7 +56,6 @@ public:
     std::uint64_t learning_updates() const { return evaluator_.updates(); }
 
     void print_sparse_stats() const {
-        if (!use_sparse_) return;
         double get_avg = sparse_memo_.get_calls() == 0
             ? 0.0
             : static_cast<double>(sparse_memo_.get_probes()) / static_cast<double>(sparse_memo_.get_calls());
@@ -99,6 +93,9 @@ public:
     }
 
 private:
+    using Board = minigo::Board64;
+    using MemoKey = minigo::SparseMemo64::Key;
+
     struct OrderedMove {
         Board move;
         int opp_legal_count;
@@ -123,17 +120,11 @@ private:
         }
     }
 
-    static std::uint64_t checked_u64(Count value) {
-        if (value > std::numeric_limits<std::uint64_t>::max()) {
-            throw std::overflow_error("state count does not fit in uint64_t");
-        }
-        return static_cast<std::uint64_t>(value);
-    }
-
-    static std::uint64_t initial_sparse_capacity(std::uint64_t states, std::uint64_t requested_capacity) {
+    static std::uint64_t initial_sparse_capacity(Count states, std::uint64_t requested_capacity) {
         if (requested_capacity != 0) return requested_capacity;
         constexpr std::uint64_t default_expected = 1ULL << 26;
-        return std::min(states, default_expected);
+        if (states < default_expected) return static_cast<std::uint64_t>(states);
+        return default_expected;
     }
 
     bool solve(Board black, Board white, bool black_turn) {
@@ -144,17 +135,9 @@ private:
 
         Board memo_black = black;
         Board memo_white = white;
-        std::uint64_t memo_key = 0;
-        std::uint64_t r = 0;
-        std::uint8_t known = 0;
-        if (use_sparse_) {
-            canonical_board(memo_black, memo_white);
-            memo_key = sparse_memo_.make_key(memo_black, memo_white);
-            known = sparse_memo_.get_key(memo_key);
-        } else {
-            r = memo_rank(black, white);
-            known = dense_memo_.get(r);
-        }
+        canonical_board(memo_black, memo_white);
+        MemoKey memo_key = sparse_memo_.make_key(memo_black, memo_white);
+        std::uint8_t known = sparse_memo_.get_key(memo_key);
         if (known != 0) {
             ++hits_;
             return known == 2;
@@ -169,7 +152,7 @@ private:
             if (captures != 0) {
                 win = true;
             } else {
-                OrderedMove ordered[32];
+                OrderedMove ordered[64];
                 int ordered_count = 0;
                 int base_opp_view_score = evaluator_.evaluate_relative(opp, me, n_);
 
@@ -212,11 +195,7 @@ private:
             }
         }
 
-        if (use_sparse_) {
-            sparse_memo_.set_key(memo_key, win ? 2 : 1);
-        } else {
-            dense_memo_.set(r, win ? 2 : 1);
-        }
+        sparse_memo_.set_key(memo_key, win ? 2 : 1);
         evaluator_.update(black, white, n_, black_turn, win);
         return win;
     }
@@ -231,16 +210,6 @@ private:
         }
     }
 
-    std::uint64_t memo_rank(Board black, Board white) const {
-        if (!use_symmetry_) return ranker_.rank(black, white);
-        Board reversed_black = minigo::reverse_board(black, n_);
-        Board reversed_white = minigo::reverse_board(white, n_);
-        if (lex_leq(black, white, reversed_black, reversed_white)) {
-            return canonical_ranker_.rank(black, white);
-        }
-        return canonical_ranker_.rank(reversed_black, reversed_white);
-    }
-
     static bool lex_leq(Board black_a, Board white_a, Board black_b, Board white_b) {
         Board diff = (black_a ^ black_b) | (white_a ^ white_b);
         if (diff == 0) return true;
@@ -252,14 +221,11 @@ private:
 
     int n_;
     bool use_symmetry_;
-    bool use_sparse_;
-    PatternEvaluator32 evaluator_;
+    PatternEvaluator64 evaluator_;
     Board mask_;
-    Ranker ranker_;
     mutable CanonicalRanker canonical_ranker_;
-    std::uint64_t states_;
-    minigo::PackedMemo dense_memo_;
-    minigo::SparseMemo sparse_memo_;
+    Count states_;
+    minigo::SparseMemo64 sparse_memo_;
     std::uint64_t nodes_ = 0;
     std::uint64_t hits_ = 0;
     std::uint64_t pruned_opponent_capture_replies_ = 0;

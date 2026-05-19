@@ -2,7 +2,7 @@
 
 1 次元版 Mini-Go の勝敗探索プログラムです。
 
-長さ `N <= 32` の直線状の盤面について、先手が左から `i` 番目に初手を打った後、その初手が先手必勝かどうかを計算します。
+長さ `N <= 64` の直線状の盤面について、先手が左から `i` 番目に初手を打った後、その初手が先手必勝かどうかを計算します。
 
 このゲームは [Kyo1r0](https://github.com/Kyo1r0) さんが考案した Mini-Go を基にしています。
 
@@ -28,11 +28,10 @@
 
 ## 結果
 
-現在のルールで `N=2..32` まで計算済みです。
+現在のルールで `N=2..37` まで計算済みです。
 
-- 表: [results/updated_rules/results_new_rules_n2_32.md](results/updated_rules/results_new_rules_n2_32.md)
-- SVG: [results/updated_rules/results_new_rules_n2_32.svg](results/updated_rules/results_new_rules_n2_32.svg)
-- PNG: [results/updated_rules/results_new_rules_n2_32.png](results/updated_rules/results_new_rules_n2_32.png)
+- 表: [results/updated_rules/results_new_rules_n2_37.md](results/updated_rules/results_new_rules_n2_37.md)
+- SVG: [results/updated_rules/results_new_rules_n2_37.svg](results/updated_rules/results_new_rules_n2_37.svg)
 
 図では、緑が先手必勝、赤が先手必敗を表します。
 
@@ -58,6 +57,7 @@ make
 次の実行ファイルを生成します。
 
 - `bin/solve_memo`: メモ化つきの高速ソルバー
+- `bin/solve_memo64`: `N <= 64` 用の64bit盤面ソルバー
 - `bin/solve_simple`: 小さい盤面用の単純な参照ソルバー
 
 ## 実行方法
@@ -97,9 +97,15 @@ N=10: L L W L W W L W L L
 bin/solve_memo 32 --sparse --learn
 ```
 
+`N > 32` を解く場合は64bit版を使います。64bit版は常に疎メモテーブルを使います。
+
+```bash
+bin/solve_memo64 33 --sparse --learn
+```
+
 ## 検証
 
-小さい盤面について、高速ソルバーと単純ソルバーの結果が一致することを確認します。
+小さい盤面について、32bit版、64bit版、単純ソルバーの結果が一致することを確認します。
 
 ```bash
 make test
@@ -121,9 +127,9 @@ make png
 
 ## 実装概要
 
-高速ソルバーは、盤面を黒石・白石それぞれの 32bit bitboard で表現します。合法手生成と捕獲手判定は bit 演算で行います。
+高速ソルバーは、盤面を黒石・白石それぞれの bitboard で表現します。`solve_memo` は32bit bitboard、`solve_memo64` は64bit bitboard を使います。合法手生成と捕獲手判定は bit 演算で行います。
 
-探索はメモ化つきの勝敗探索です。疎メモでは、黒石と白石が隣接しない局面だけを対象にした rank key と勝敗値 2bit を合わせて、1 entry を 6 bytes に詰めています。
+探索はメモ化つきの勝敗探索です。32bit版の疎メモでは、黒石と白石が隣接しない局面だけを対象にした rank key と勝敗値 2bit を合わせて、1 entry を 6 bytes に詰めています。64bit版では同じ考え方の rank key を 128bit 整数で扱い、1 entry を 11 bytes に詰めています。
 
 詳細は [docs/implementation.md](docs/implementation.md) を参照してください。
 

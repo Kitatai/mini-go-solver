@@ -24,8 +24,22 @@ inline Board32 reverse_bits32(Board32 x) {
     return x;
 }
 
+inline Board64 reverse_bits64(Board64 x) {
+    x = ((x & 0x5555555555555555ULL) << 1) | ((x >> 1) & 0x5555555555555555ULL);
+    x = ((x & 0x3333333333333333ULL) << 2) | ((x >> 2) & 0x3333333333333333ULL);
+    x = ((x & 0x0f0f0f0f0f0f0f0fULL) << 4) | ((x >> 4) & 0x0f0f0f0f0f0f0f0fULL);
+    x = ((x & 0x00ff00ff00ff00ffULL) << 8) | ((x >> 8) & 0x00ff00ff00ff00ffULL);
+    x = ((x & 0x0000ffff0000ffffULL) << 16) | ((x >> 16) & 0x0000ffff0000ffffULL);
+    x = (x << 32) | (x >> 32);
+    return x;
+}
+
 inline Board32 reverse_board(Board32 x, int n) {
     return reverse_bits32(x) >> (32 - n);
+}
+
+inline Board64 reverse_board(Board64 x, int n) {
+    return reverse_bits64(x) >> (64 - n);
 }
 
 template <class Board>

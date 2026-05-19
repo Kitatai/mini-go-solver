@@ -123,7 +123,7 @@ make png
 
 高速ソルバーは、盤面を黒石・白石それぞれの 32bit bitboard で表現します。合法手生成と捕獲手判定は bit 演算で行います。
 
-探索はメモ化つきの勝敗探索です。疎メモでは、各マスを `空点 / 黒石 / 白石` の 3 状態として三進数 key に変換し、勝敗値 2bit と合わせて 1 entry を 7 bytes に詰めています。
+探索はメモ化つきの勝敗探索です。疎メモでは、黒石と白石が隣接しない局面だけを対象にした rank key と勝敗値 2bit を合わせて、1 entry を 6 bytes に詰めています。
 
 詳細は [docs/implementation.md](docs/implementation.md) を参照してください。
 

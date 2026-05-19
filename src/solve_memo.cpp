@@ -27,7 +27,7 @@ struct Options {
 std::uint64_t sparse_capacity_from_gib(double gib) {
     if (gib <= 0.0) return 0;
     long double bytes = static_cast<long double>(gib) * 1024.0L * 1024.0L * 1024.0L;
-    std::uint64_t max_entries = static_cast<std::uint64_t>(bytes / 7.0L);
+    std::uint64_t max_entries = static_cast<std::uint64_t>(bytes / minigo::SparseMemo::entry_bytes());
     std::uint64_t capacity = 1;
     while ((capacity << 1) != 0 && (capacity << 1) <= max_entries) {
         capacity <<= 1;

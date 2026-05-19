@@ -26,7 +26,7 @@ public:
           canonical_ranker_(n),
           states_(checked_u64(use_symmetry_ ? canonical_ranker_.total_states() : ranker_.total_states())),
           dense_memo_(use_sparse ? 0 : states_),
-          sparse_memo_(use_sparse ? initial_sparse_capacity(states_, sparse_initial_capacity) : 0,
+          sparse_memo_(n, use_sparse ? initial_sparse_capacity(states_, sparse_initial_capacity) : 0,
                        use_sparse ? sparse_initial_capacity : 0) {}
 
     bool first_wins_after(int first) {
@@ -149,7 +149,7 @@ private:
         std::uint8_t known = 0;
         if (use_sparse_) {
             canonical_board(memo_black, memo_white);
-            memo_key = minigo::SparseMemo::make_key(memo_black, memo_white);
+            memo_key = sparse_memo_.make_key(memo_black, memo_white);
             known = sparse_memo_.get_key(memo_key);
         } else {
             r = memo_rank(black, white);

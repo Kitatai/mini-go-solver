@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 
 namespace minigo {
@@ -37,9 +38,12 @@ private:
 
 class SparseMemo {
 public:
-    explicit SparseMemo(std::uint64_t expected_entries, std::uint64_t initial_capacity = 0) {
-        init_pow3_table();
-        init_chunk_table();
+    explicit SparseMemo(int n, std::uint64_t expected_entries, std::uint64_t initial_capacity = 0)
+        : n_(n),
+          suffix_((static_cast<std::size_t>(n_) + 1) * SYMBOLS, 0),
+          chunk_rank_(CHUNKS * SYMBOLS * CHUNK_KEYS) {
+        init_suffix_counts();
+        init_chunk_rank();
         std::uint64_t capacity = 1;
         std::uint64_t target = initial_capacity != 0 ? initial_capacity : expected_entries * 2;
         while (capacity < target) capacity <<= 1;
@@ -103,10 +107,6 @@ public:
         }
     }
 
-    static std::uint64_t make_key(Board32 black, Board32 white) {
-        return ternary_key(black, white);
-    }
-
     std::uint64_t filled_count(std::uint64_t) const {
         return filled_;
     }
@@ -128,16 +128,40 @@ public:
     std::uint64_t max_get_probe() const { return max_get_probe_; }
     std::uint64_t max_set_probe() const { return max_set_probe_; }
 
-private:
-    static constexpr std::uint64_t ENTRY_BYTES = 7;
-
-    static void init_pow3_table() {
-        if (pow3_table_[0] != 0) return;
-        pow3_table_[0] = 1;
-        for (int i = 1; i <= 32; ++i) {
-            pow3_table_[i] = pow3_table_[i - 1] * 3ULL;
-        }
+    static constexpr std::uint64_t entry_bytes() {
+        return ENTRY_BYTES;
     }
+
+    std::uint64_t make_key(Board32 black, Board32 white) const {
+        std::uint64_t rank = 0;
+        int prev = EMPTY;
+        for (int chunk = 0; chunk < CHUNKS; ++chunk) {
+            std::uint32_t black_byte = (black >> (chunk * CHUNK_BITS)) & 0xffu;
+            std::uint32_t white_byte = (white >> (chunk * CHUNK_BITS)) & 0xffu;
+            const ChunkRank& cr = chunk_rank(chunk, prev, (black_byte << 8) | white_byte);
+            if (cr.next < 0) {
+                throw std::logic_error("attempted to memoize a board with adjacent black and white stones");
+            }
+            rank += cr.rank;
+            prev = cr.next;
+        }
+        return rank;
+    }
+
+private:
+    static constexpr int EMPTY = 0;
+    static constexpr int BLACK = 1;
+    static constexpr int WHITE = 2;
+    static constexpr int SYMBOLS = 3;
+    static constexpr int CHUNK_BITS = 8;
+    static constexpr int CHUNKS = 4;
+    static constexpr int CHUNK_KEYS = 1 << 16;
+    static constexpr std::uint64_t ENTRY_BYTES = 6;
+
+    struct ChunkRank {
+        std::uint64_t rank = 0;
+        int8_t next = -1;
+    };
 
     static std::uint64_t mix(std::uint64_t x) {
         x += 0x9e3779b97f4a7c15ULL;
@@ -146,29 +170,79 @@ private:
         return x ^ (x >> 31);
     }
 
-    static void init_chunk_table() {
-        static bool initialized = false;
-        if (initialized) return;
-        for (int chunk = 0; chunk < 4; ++chunk) {
-            for (int black_byte = 0; black_byte < 256; ++black_byte) {
-                for (int white_byte = 0; white_byte < 256; ++white_byte) {
-                    std::uint64_t value = 0;
-                    for (int bit = 0; bit < 8; ++bit) {
-                        int digit = (black_byte & (1 << bit)) ? 1 : (white_byte & (1 << bit)) ? 2 : 0;
-                        value += static_cast<std::uint64_t>(digit) * pow3_table_[chunk * 8 + bit];
+    void init_suffix_counts() {
+        for (int prev = 0; prev < SYMBOLS; ++prev) {
+            suffix(n_, prev) = 1;
+        }
+        for (int pos = n_ - 1; pos >= 0; --pos) {
+            for (int prev = 0; prev < SYMBOLS; ++prev) {
+                std::uint64_t total = 0;
+                for (int symbol = 0; symbol < SYMBOLS; ++symbol) {
+                    if (is_contact(prev, symbol)) continue;
+                    total += suffix(pos + 1, symbol);
+                }
+                suffix(pos, prev) = total;
+            }
+        }
+    }
+
+    void init_chunk_rank() {
+        for (int chunk = 0; chunk < CHUNKS; ++chunk) {
+            int start = chunk * CHUNK_BITS;
+            int end = std::min(n_, start + CHUNK_BITS);
+            for (int prev = 0; prev < SYMBOLS; ++prev) {
+                for (int black_byte = 0; black_byte < 256; ++black_byte) {
+                    for (int white_byte = 0; white_byte < 256; ++white_byte) {
+                        ChunkRank cr{};
+                        int current = prev;
+                        bool valid = true;
+                        for (int pos = start; pos < end; ++pos) {
+                            int bit = pos - start;
+                            bool has_black = (black_byte & (1 << bit)) != 0;
+                            bool has_white = (white_byte & (1 << bit)) != 0;
+                            if (has_black && has_white) {
+                                valid = false;
+                                break;
+                            }
+                            int actual = has_black ? BLACK : has_white ? WHITE : EMPTY;
+                            for (int symbol = 0; symbol < actual; ++symbol) {
+                                if (is_contact(current, symbol)) continue;
+                                cr.rank += suffix(pos + 1, symbol);
+                            }
+                            if (is_contact(current, actual)) {
+                                valid = false;
+                                break;
+                            }
+                            current = actual;
+                        }
+                        cr.next = valid ? static_cast<int8_t>(current) : -1;
+                        chunk_rank(chunk, prev, (black_byte << 8) | white_byte) = cr;
                     }
-                    chunk_rank_[chunk][(black_byte << 8) | white_byte] = value;
                 }
             }
         }
-        initialized = true;
     }
 
-    static std::uint64_t ternary_key(Board32 black, Board32 white) {
-        return chunk_rank_[0][((black & 0xffu) << 8) | (white & 0xffu)]
-             + chunk_rank_[1][(((black >> 8) & 0xffu) << 8) | ((white >> 8) & 0xffu)]
-             + chunk_rank_[2][(((black >> 16) & 0xffu) << 8) | ((white >> 16) & 0xffu)]
-             + chunk_rank_[3][(((black >> 24) & 0xffu) << 8) | ((white >> 24) & 0xffu)];
+    static bool is_contact(int left, int right) {
+        return (left == BLACK && right == WHITE) || (left == WHITE && right == BLACK);
+    }
+
+    std::uint64_t& suffix(int pos, int prev) {
+        return suffix_[static_cast<std::size_t>(pos) * SYMBOLS + prev];
+    }
+
+    std::uint64_t suffix(int pos, int prev) const {
+        return suffix_[static_cast<std::size_t>(pos) * SYMBOLS + prev];
+    }
+
+    ChunkRank& chunk_rank(int chunk, int prev, int key) {
+        return chunk_rank_[(static_cast<std::size_t>(chunk) * SYMBOLS + prev) * CHUNK_KEYS
+                         + static_cast<std::size_t>(key)];
+    }
+
+    const ChunkRank& chunk_rank(int chunk, int prev, int key) const {
+        return chunk_rank_[(static_cast<std::size_t>(chunk) * SYMBOLS + prev) * CHUNK_KEYS
+                         + static_cast<std::size_t>(key)];
     }
 
     std::uint64_t load_entry(std::uint64_t idx) const {
@@ -178,8 +252,7 @@ private:
              | (static_cast<std::uint64_t>(p[2]) << 16)
              | (static_cast<std::uint64_t>(p[3]) << 24)
              | (static_cast<std::uint64_t>(p[4]) << 32)
-             | (static_cast<std::uint64_t>(p[5]) << 40)
-             | (static_cast<std::uint64_t>(p[6]) << 48);
+             | (static_cast<std::uint64_t>(p[5]) << 40);
     }
 
     void store_entry(std::uint64_t idx, std::uint64_t entry) {
@@ -190,7 +263,6 @@ private:
         p[3] = static_cast<std::uint8_t>(entry >> 24);
         p[4] = static_cast<std::uint8_t>(entry >> 32);
         p[5] = static_cast<std::uint8_t>(entry >> 40);
-        p[6] = static_cast<std::uint8_t>(entry >> 48);
     }
 
     void record_get_probes(std::uint64_t probes) const {
@@ -218,8 +290,7 @@ private:
                 | (static_cast<std::uint64_t>(p[2]) << 16)
                 | (static_cast<std::uint64_t>(p[3]) << 24)
                 | (static_cast<std::uint64_t>(p[4]) << 32)
-                | (static_cast<std::uint64_t>(p[5]) << 40)
-                | (static_cast<std::uint64_t>(p[6]) << 48);
+                | (static_cast<std::uint64_t>(p[5]) << 40);
             std::uint8_t value = static_cast<std::uint8_t>(entry & 0b11);
             if (value == 0) continue;
             set_key(entry >> 2, value);
@@ -227,6 +298,9 @@ private:
     }
 
     std::vector<std::uint8_t> entries_;
+    int n_;
+    std::vector<std::uint64_t> suffix_;
+    std::vector<ChunkRank> chunk_rank_;
     std::uint64_t mask_ = 0;
     std::uint64_t filled_ = 0;
     mutable std::uint64_t get_calls_ = 0;
@@ -238,8 +312,6 @@ private:
     mutable std::uint64_t max_get_probe_ = 0;
     std::uint64_t max_set_probe_ = 0;
 
-    inline static std::uint64_t pow3_table_[33] = {};
-    inline static std::uint64_t chunk_rank_[4][65536] = {};
 };
 
 } // namespace minigo

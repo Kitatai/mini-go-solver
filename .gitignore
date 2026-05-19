@@ -1,0 +1,17 @@
+# Build outputs
+/bin/
+
+# Local editor settings
+/.vscode/
+
+# Local tool state
+/.agents/
+/.codex/
+
+# Python cache
+__pycache__/
+.pytest_cache/
+
+# OS/editor noise
+.DS_Store
+*~

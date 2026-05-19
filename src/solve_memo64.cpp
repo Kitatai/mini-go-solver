@@ -101,6 +101,7 @@ void print_run_stats(const Solver64& solver) {
               << " allocated_bytes=" << solver.memo_bytes()
               << " filled_memo_entries=" << filled
               << " filled_ratio=" << static_cast<double>(filled_ratio)
+              << " pruned_edge_moves=" << solver.pruned_edge_moves()
               << " pruned_opponent_capture_replies=" << solver.pruned_opponent_capture_replies()
               << " learning_updates=" << solver.learning_updates() << '\n';
     solver.print_sparse_stats();

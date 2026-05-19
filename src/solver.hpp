@@ -57,6 +57,7 @@ public:
     std::uint64_t filled_memo_entries() const { return nodes_ - hits_; }
     std::uint64_t nodes() const { return nodes_; }
     std::uint64_t hits() const { return hits_; }
+    std::uint64_t pruned_edge_moves() const { return pruned_edge_moves_; }
     std::uint64_t pruned_opponent_capture_replies() const { return pruned_opponent_capture_replies_; }
     std::uint64_t learning_updates() const { return evaluator_.updates(); }
 
@@ -172,8 +173,10 @@ private:
                 OrderedMove ordered[32];
                 int ordered_count = 0;
                 int base_opp_view_score = evaluator_.evaluate_relative(opp, me, n_);
+                Board edge_moves = (Board{1} | (Board{1} << (n_ - 1))) & legal;
+                pruned_edge_moves_ += std::popcount(edge_moves);
 
-                Board moves = legal;
+                Board moves = legal & ~edge_moves;
                 while (moves) {
                     Board move = moves & -moves;
                     moves &= moves - 1;
@@ -262,5 +265,6 @@ private:
     minigo::SparseMemo sparse_memo_;
     std::uint64_t nodes_ = 0;
     std::uint64_t hits_ = 0;
+    std::uint64_t pruned_edge_moves_ = 0;
     std::uint64_t pruned_opponent_capture_replies_ = 0;
 };

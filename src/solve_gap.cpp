@@ -319,6 +319,31 @@ public:
         return true;
     }
 
+    bool write_single_gap_children_csv(int max_m, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "m,pos,edge_distance,center_distance,child_gap_count,child_gaps\n";
+        for (int m = 1; m <= max_m; ++m) {
+            GapList state = single_gap_state(m, OPP, WALL);
+            if (!win_state(state)) continue;
+            Gap gap = state[0];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, 0, pos);
+                if (win_state(child)) continue;
+                out << m << ','
+                    << pos << ','
+                    << static_cast<int>(edge_distance(gap, pos)) << ','
+                    << std::abs(2 * pos - (m - 1)) << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << '\n';
+            }
+        }
+        return true;
+    }
+
     std::uint64_t states() const {
         return memo_.size();
     }
@@ -472,6 +497,21 @@ private:
         return out;
     }
 
+    std::string quote_gap_list(const GapList& gaps) const {
+        std::string out = "\"";
+        for (std::size_t i = 0; i < gaps.size; ++i) {
+            if (i > 0) out.push_back(' ');
+            const Gap& gap = gaps[i];
+            out += std::to_string(gap.m);
+            out.push_back(':');
+            out += std::to_string(gap.left);
+            out.push_back(':');
+            out += std::to_string(gap.right);
+        }
+        out.push_back('"');
+        return out;
+    }
+
     bool win_state(const GapList& state) {
         PackedKey key = pack_state(state);
         std::string_view key_view = key.view();
@@ -576,10 +616,12 @@ int main(int argc, char** argv) {
     int initial_grid_sum = -1;
     int initial_response_sum = -1;
     int single_gap_max = -1;
+    int single_gap_children_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
     std::string initial_grid_csv;
     std::string initial_response_csv;
     std::string single_gap_csv;
+    std::string single_gap_children_csv;
     for (int i = 1; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--to" && i + 1 < argc) {
@@ -598,10 +640,28 @@ int main(int argc, char** argv) {
             single_gap_max = std::atoi(argv[++i]);
         } else if (arg == "--single-gap-csv" && i + 1 < argc) {
             single_gap_csv = argv[++i];
+        } else if (arg == "--single-gap-children-max" && i + 1 < argc) {
+            single_gap_children_max = std::atoi(argv[++i]);
+        } else if (arg == "--single-gap-children-csv" && i + 1 < argc) {
+            single_gap_children_csv = argv[++i];
         }
     }
 
     GapSolver solver;
+    if (single_gap_children_max >= 0) {
+        if (single_gap_children_csv.empty()) {
+            std::cerr << "--single-gap-children-csv is required with --single-gap-children-max\n";
+            return 2;
+        }
+        if (!solver.write_single_gap_children_csv(single_gap_children_max, single_gap_children_csv)) {
+            std::cerr << "failed to write " << single_gap_children_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << single_gap_children_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (single_gap_max >= 0) {
         if (single_gap_csv.empty()) {
             std::cerr << "--single-gap-csv is required with --single-gap-max\n";

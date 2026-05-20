@@ -77,9 +77,10 @@ needed for a clean proof.
 When all winning responses are considered, a clean untouched-gap response exists
 for every checked move.
 
-Some response children contain one-cell gaps with no legal moves, such as
-`Gap(1, wall, current)`. These are zero components in normal-play terms and can
-be ignored in a decomposition, but the proof should state this explicitly.
+One-cell gaps require care. A one-cell gap may have no legal move for the
+current player, but it is not automatically a removable zero component in the
+relative-color representation. After a move elsewhere, the turn pass flips
+`current/opponent` boundaries, and the same gap may become active.
 
 ## Closure Obstruction
 
@@ -100,9 +101,9 @@ response children include forms such as:
 WO(1) + MM(1) + MO(6) + OO(6)
 ```
 
-The `WO(1)` component has no legal move and is inert, but `MM(1)` is not inert:
-it is a live one-move component. Therefore this child cannot be justified by
-discarding one-cell gaps alone.
+The obstruction is the pair `WO(1) + MM(1)`. The `WO(1)` component has no legal
+move for the current player, but it cannot simply be discarded before analyzing
+the turn-flip behavior of the whole state.
 
 Similarly, response children of the six families may contain active small
 components such as:
@@ -120,13 +121,32 @@ six-family list.
 Thus the current six-family statement is best understood as a response-location
 theorem, not yet as a closed induction proof.
 
+## Nine-Family Refinement
+
+The six-family obstruction is largely repaired by adding:
+
+```text
+WM(1)
+WM(1) + MO(n) + MO(n)
+WM(1) + OO(n) + MM(n)
+```
+
+to the original six families.
+
+An independent DP closure check for `1 <= n <= 10` found no misses for this
+nine-family class. Every legal move from one of the nine families has a winning
+response whose child decomposes into smaller nine-family members.
+
+This makes the nine-family class the strongest current finite induction
+candidate.
+
 ## Current Proof Target
 
-The remaining task is to prove the six response rules above symbolically.
+The remaining task is to prove the nine-family response rules symbolically.
 
 The desired proof form is:
 
-1. State the six families as losing families.
+1. State the nine families as losing families.
 2. For each family, take an arbitrary legal move.
 3. Respond in the untouched gap using one of the listed formulas.
 4. Show the response is legal.
@@ -134,7 +154,5 @@ The desired proof form is:
 
 The checked data supports the response-location part through `n = 18`.
 
-The next refinement is to replace the six-family list with a broader structural
-class that permits active bounded components such as `MM(1)` when they are
-paired with a larger boundary component. The proof should then show that this
-broader class is closed under the same untouched-gap response principle.
+The proof should show that this class is closed under the same untouched-gap
+response principle, with `WM(1)` as a base losing state.

@@ -30,6 +30,10 @@ bool operator<(const Gap& a, const Gap& b) {
     return a.right < b.right;
 }
 
+bool operator==(const Gap& a, const Gap& b) {
+    return a.m == b.m && a.left == b.left && a.right == b.right;
+}
+
 std::uint8_t flip(std::uint8_t b) {
     if (b == ME) return OPP;
     if (b == OPP) return ME;
@@ -39,12 +43,6 @@ std::uint8_t flip(std::uint8_t b) {
 Gap canonical_gap(Gap g) {
     Gap r{g.m, g.right, g.left};
     return r < g ? r : g;
-}
-
-std::uint64_t pack_gap(Gap g) {
-    return static_cast<std::uint64_t>(g.m) * 9ULL
-         + static_cast<std::uint64_t>(g.left) * 3ULL
-         + static_cast<std::uint64_t>(g.right);
 }
 
 std::vector<Gap> normalize(std::vector<Gap> gaps) {
@@ -66,39 +64,24 @@ std::vector<Gap> pass_turn(std::vector<Gap> gaps) {
     return normalize(std::move(gaps));
 }
 
-struct GapState {
-    std::vector<Gap> gaps;
-
-    bool operator==(const GapState& other) const {
-        if (gaps.size() != other.gaps.size()) return false;
-        for (std::size_t i = 0; i < gaps.size(); ++i) {
-            const Gap& a = gaps[i];
-            const Gap& b = other.gaps[i];
-            if (a.m != b.m || a.left != b.left || a.right != b.right) return false;
-        }
-        return true;
+std::string pack_state(const std::vector<Gap>& gaps) {
+    std::string key;
+    key.reserve(gaps.size() * 2);
+    for (Gap g : gaps) {
+        std::uint16_t packed = static_cast<std::uint16_t>(
+            (static_cast<std::uint16_t>(g.m) << 4)
+            | (static_cast<std::uint16_t>(g.left) << 2)
+            | static_cast<std::uint16_t>(g.right));
+        key.push_back(static_cast<char>(packed & 0xff));
+        key.push_back(static_cast<char>(packed >> 8));
     }
-};
-
-struct GapStateHash {
-    std::size_t operator()(const GapState& state) const {
-        std::uint64_t h = 0x9e3779b97f4a7c15ULL ^ state.gaps.size();
-        for (Gap g : state.gaps) {
-            std::uint64_t x = pack_gap(g) + 0x9e3779b97f4a7c15ULL;
-            x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
-            x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
-            x ^= x >> 31;
-            h ^= x + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
-        }
-        return static_cast<std::size_t>(h);
-    }
-};
+    return key;
+}
 
 class GapSolver {
 public:
     bool win(std::vector<Gap> gaps) {
-        GapState state{normalize(std::move(gaps))};
-        return win_state(state);
+        return win_state(normalize(std::move(gaps)));
     }
 
     std::uint64_t states() const {
@@ -106,12 +89,16 @@ public:
     }
 
 private:
-    bool win_state(const GapState& state) {
-        auto it = memo_.find(state);
+    bool win_state(const std::vector<Gap>& state) {
+        std::string key = pack_state(state);
+        auto it = memo_.find(key);
         if (it != memo_.end()) return it->second;
 
-        for (std::size_t gap_index = 0; gap_index < state.gaps.size(); ++gap_index) {
-            Gap gap = state.gaps[gap_index];
+        for (std::size_t gap_index = 0; gap_index < state.size(); ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) {
+                continue;
+            }
+            Gap gap = state[gap_index];
             for (int pos = 0; pos < gap.m; ++pos) {
                 if ((pos == 0 && gap.left == WALL) || (pos == gap.m - 1 && gap.right == WALL)) {
                     continue;
@@ -121,9 +108,9 @@ private:
                 }
 
                 std::vector<Gap> next;
-                next.reserve(state.gaps.size() + 1);
-                for (std::size_t i = 0; i < state.gaps.size(); ++i) {
-                    if (i != gap_index) next.push_back(state.gaps[i]);
+                next.reserve(state.size() + 1);
+                for (std::size_t i = 0; i < state.size(); ++i) {
+                    if (i != gap_index) next.push_back(state[i]);
                 }
                 if (pos > 0) {
                     next.push_back(Gap{static_cast<std::uint8_t>(pos), gap.left, ME});
@@ -133,19 +120,19 @@ private:
                     next.push_back(Gap{static_cast<std::uint8_t>(right_len), ME, gap.right});
                 }
 
-                GapState child{pass_turn(std::move(next))};
+                std::vector<Gap> child = pass_turn(std::move(next));
                 if (!win_state(child)) {
-                    memo_.emplace(state, true);
+                    memo_.emplace(std::move(key), true);
                     return true;
                 }
             }
         }
 
-        memo_.emplace(state, false);
+        memo_.emplace(std::move(key), false);
         return false;
     }
 
-    std::unordered_map<GapState, bool, GapStateHash> memo_;
+    std::unordered_map<std::string, bool> memo_;
 };
 
 std::vector<char> gap_row(int n, GapSolver& solver) {

@@ -286,6 +286,39 @@ std::vector<char> gap_row(int n, GapSolver& solver) {
     return row;
 }
 
+bool initial_gap_current_player_wins(int left_len, int right_len, GapSolver& solver) {
+    std::vector<Gap> gaps = {
+        Gap{static_cast<std::uint8_t>(left_len), WALL, OPP},
+        Gap{static_cast<std::uint8_t>(right_len), OPP, WALL},
+    };
+    return solver.win(std::move(gaps));
+}
+
+bool write_initial_grid_csv(int max_sum, const std::string& path, GapSolver& solver) {
+    std::ofstream out(path);
+    if (!out) return false;
+
+    out << "left_len,right_len,total_empty,n,first,current_player_result,black_initial_result\n";
+    for (int left_len = 1; left_len <= max_sum; ++left_len) {
+        for (int right_len = 1; right_len + left_len <= max_sum; ++right_len) {
+            bool current_wins = initial_gap_current_player_wins(left_len, right_len, solver);
+            char current_result = current_wins ? 'W' : 'L';
+            char black_result = current_wins ? 'L' : 'W';
+            int total_empty = left_len + right_len;
+            int n = total_empty + 1;
+            int first = left_len;
+            out << left_len << ','
+                << right_len << ','
+                << total_empty << ','
+                << n << ','
+                << first << ','
+                << current_result << ','
+                << black_result << '\n';
+        }
+    }
+    return true;
+}
+
 std::unordered_map<int, std::vector<char>> parse_results(const std::string& path) {
     std::unordered_map<int, std::vector<char>> rows;
     std::ifstream in(path);
@@ -312,18 +345,38 @@ std::unordered_map<int, std::vector<char>> parse_results(const std::string& path
 
 int main(int argc, char** argv) {
     int to = 37;
+    int initial_grid_sum = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
+    std::string initial_grid_csv;
     for (int i = 1; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--to" && i + 1 < argc) {
             to = std::atoi(argv[++i]);
         } else if (arg == "--results" && i + 1 < argc) {
             results_path = argv[++i];
+        } else if (arg == "--initial-grid-sum" && i + 1 < argc) {
+            initial_grid_sum = std::atoi(argv[++i]);
+        } else if (arg == "--initial-grid-csv" && i + 1 < argc) {
+            initial_grid_csv = argv[++i];
         }
     }
 
-    auto expected = parse_results(results_path);
     GapSolver solver;
+    if (initial_grid_sum >= 0) {
+        if (initial_grid_csv.empty()) {
+            std::cerr << "--initial-grid-csv is required with --initial-grid-sum\n";
+            return 2;
+        }
+        if (!write_initial_grid_csv(initial_grid_sum, initial_grid_csv, solver)) {
+            std::cerr << "failed to write " << initial_grid_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << initial_grid_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    auto expected = parse_results(results_path);
     int mismatches = 0;
     for (int n = 2; n <= to; ++n) {
         std::vector<char> row = gap_row(n, solver);

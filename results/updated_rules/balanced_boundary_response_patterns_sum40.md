@@ -95,6 +95,37 @@ s=37 -> 3,3,14,15
 
 This supports an induction proof that includes a small set of auxiliary losing families, rather than only the single near-balanced two-gap family.
 
+The observed four-gap states fall into the following auxiliary families.
+
+Family A:
+
+```text
+3:current:opponent
++ 3:current:opponent
++ r:opponent:opponent
++ (r+1):wall:current
+```
+
+Family B:
+
+```text
+3:current:opponent
++ 4:wall:opponent
++ r:current:current
++ r:opponent:opponent
+```
+
+Special state C:
+
+```text
+3:wall:current
++ 3:current:opponent
++ 3:current:opponent
++ 3:opponent:opponent
+```
+
+Exact checks confirm that Family A and Family B are losing for every `1 <= r <= 18`, and that C is losing.
+
 ## Current Proof Direction
 
 The near-balanced two-gap lemma alone may be too narrow for a direct one-step induction, because some responses move to four-gap states rather than another near-balanced two-gap state.

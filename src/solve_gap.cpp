@@ -433,6 +433,19 @@ public:
         return true;
     }
 
+    bool write_auxiliary_family_csv(int max_r, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,r,total_empty,current_player_result,state\n";
+        for (int r = 1; r <= max_r; ++r) {
+            write_auxiliary_row(out, "A", r, auxiliary_family_a(r));
+            write_auxiliary_row(out, "B", r, auxiliary_family_b(r));
+        }
+        write_auxiliary_row(out, "C", 3, auxiliary_family_c());
+        return true;
+    }
+
     std::uint64_t states() const {
         return memo_.size();
     }
@@ -452,6 +465,53 @@ private:
         state.push_back(Gap{static_cast<std::uint8_t>(me_opp_len), ME, OPP});
         normalize_in_place(state);
         return state;
+    }
+
+    GapList auxiliary_family_a(int r) {
+        GapList state;
+        state.push_back(Gap{3, ME, OPP});
+        state.push_back(Gap{3, ME, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(r), OPP, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(r + 1), WALL, ME});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList auxiliary_family_b(int r) {
+        GapList state;
+        state.push_back(Gap{3, ME, OPP});
+        state.push_back(Gap{4, WALL, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(r), ME, ME});
+        state.push_back(Gap{static_cast<std::uint8_t>(r), OPP, OPP});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList auxiliary_family_c() {
+        GapList state;
+        state.push_back(Gap{3, WALL, ME});
+        state.push_back(Gap{3, ME, OPP});
+        state.push_back(Gap{3, ME, OPP});
+        state.push_back(Gap{3, OPP, OPP});
+        normalize_in_place(state);
+        return state;
+    }
+
+    int total_empty(const GapList& state) const {
+        int total = 0;
+        for (std::size_t i = 0; i < state.size; ++i) {
+            total += state[i].m;
+        }
+        return total;
+    }
+
+    void write_auxiliary_row(std::ofstream& out, const char* family, int r, GapList state) {
+        bool current_wins = win_state(state);
+        out << family << ','
+            << r << ','
+            << total_empty(state) << ','
+            << (current_wins ? 'W' : 'L') << ','
+            << quote_gap_list(state) << '\n';
     }
 
     GapList single_gap_state(int m, std::uint8_t left, std::uint8_t right) {
@@ -753,6 +813,7 @@ int main(int argc, char** argv) {
     int single_gap_children_max = -1;
     int boundary_grid_sum = -1;
     int balanced_boundary_response_sum = -1;
+    int auxiliary_family_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
     std::string initial_grid_csv;
     std::string initial_response_csv;
@@ -760,6 +821,7 @@ int main(int argc, char** argv) {
     std::string single_gap_children_csv;
     std::string boundary_grid_csv;
     std::string balanced_boundary_response_csv;
+    std::string auxiliary_family_csv;
     for (int i = 1; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--to" && i + 1 < argc) {
@@ -790,10 +852,28 @@ int main(int argc, char** argv) {
             balanced_boundary_response_sum = std::atoi(argv[++i]);
         } else if (arg == "--balanced-boundary-response-csv" && i + 1 < argc) {
             balanced_boundary_response_csv = argv[++i];
+        } else if (arg == "--auxiliary-family-max" && i + 1 < argc) {
+            auxiliary_family_max = std::atoi(argv[++i]);
+        } else if (arg == "--auxiliary-family-csv" && i + 1 < argc) {
+            auxiliary_family_csv = argv[++i];
         }
     }
 
     GapSolver solver;
+    if (auxiliary_family_max >= 0) {
+        if (auxiliary_family_csv.empty()) {
+            std::cerr << "--auxiliary-family-csv is required with --auxiliary-family-max\n";
+            return 2;
+        }
+        if (!solver.write_auxiliary_family_csv(auxiliary_family_max, auxiliary_family_csv)) {
+            std::cerr << "failed to write " << auxiliary_family_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << auxiliary_family_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (balanced_boundary_response_sum >= 0) {
         if (balanced_boundary_response_csv.empty()) {
             std::cerr << "--balanced-boundary-response-csv is required with --balanced-boundary-response-sum\n";

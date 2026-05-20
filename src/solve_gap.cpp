@@ -59,6 +59,12 @@ struct ResponseSummary {
     std::uint8_t best_edge_distance = 0;
 };
 
+struct ResponseDetail {
+    ResponseSummary summary{};
+    GapList first_child{};
+    GapList best_child{};
+};
+
 bool operator<(const Gap& a, const Gap& b) {
     if (a.m != b.m) return a.m < b.m;
     if (a.left != b.left) return a.left < b.left;
@@ -362,6 +368,71 @@ public:
         return true;
     }
 
+    bool write_balanced_boundary_response_csv(int max_sum, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "total_empty,wall_opp_len,me_opp_len,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "child_gap_count,child_gaps,"
+            << "response_gap_m,response_gap_left,response_gap_right,response_pos,"
+            << "best_response_gap_m,best_response_gap_left,best_response_gap_right,best_response_pos,"
+            << "best_response_edge_distance,winning_response_count,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int total = 2; total <= max_sum; ++total) {
+            int wall_opp_len = (total + 1) / 2;
+            int me_opp_len = total / 2;
+            GapList state = boundary_state(wall_opp_len, me_opp_len);
+            if (win_state(state)) {
+                std::cerr << "near-balanced boundary state is not losing for total="
+                          << total << '\n';
+                return false;
+            }
+
+            for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+                if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+                Gap gap = state[gap_index];
+                int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+                for (int pos = 0; pos < pos_limit; ++pos) {
+                    if (!is_legal_move(gap, pos)) continue;
+
+                    GapList child = child_after_move(state, gap_index, pos);
+                    ResponseDetail response;
+                    bool has_response = summarize_winning_moves(child, response);
+                    if (!has_response) {
+                        std::cerr << "missing response for total=" << total
+                                  << " gap_m=" << static_cast<int>(gap.m)
+                                  << " pos=" << pos << '\n';
+                        return false;
+                    }
+
+                    out << total << ','
+                        << wall_opp_len << ','
+                        << me_opp_len << ','
+                        << static_cast<int>(gap.m) << ','
+                        << static_cast<int>(gap.left) << ','
+                        << static_cast<int>(gap.right) << ','
+                        << pos << ','
+                        << child.size << ','
+                        << quote_gap_list(child) << ','
+                        << static_cast<int>(response.summary.first.gap_m) << ','
+                        << static_cast<int>(response.summary.first.gap_left) << ','
+                        << static_cast<int>(response.summary.first.gap_right) << ','
+                        << static_cast<int>(response.summary.first.pos) << ','
+                        << static_cast<int>(response.summary.best.gap_m) << ','
+                        << static_cast<int>(response.summary.best.gap_left) << ','
+                        << static_cast<int>(response.summary.best.gap_right) << ','
+                        << static_cast<int>(response.summary.best.pos) << ','
+                        << static_cast<int>(response.summary.best_edge_distance) << ','
+                        << response.summary.winning_count << ','
+                        << response.best_child.size << ','
+                        << quote_gap_list(response.best_child) << '\n';
+                }
+            }
+        }
+        return true;
+    }
+
     std::uint64_t states() const {
         return memo_.size();
     }
@@ -452,6 +523,43 @@ private:
                         summary.best_edge_distance = distance;
                     }
                     ++summary.winning_count;
+                }
+            }
+        }
+        return found;
+    }
+
+    bool summarize_winning_moves(const GapList& state, ResponseDetail& detail) {
+        if (!win_state(state)) return false;
+        bool found = false;
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, gap_index, pos);
+                if (!win_state(child)) {
+                    Move move{
+                        gap.m,
+                        gap.left,
+                        gap.right,
+                        static_cast<std::uint8_t>(pos),
+                    };
+                    std::uint8_t distance = edge_distance(gap, pos);
+                    if (!found) {
+                        detail.summary.first = move;
+                        detail.summary.best = move;
+                        detail.summary.best_edge_distance = distance;
+                        detail.first_child = child;
+                        detail.best_child = child;
+                        found = true;
+                    } else if (distance < detail.summary.best_edge_distance) {
+                        detail.summary.best = move;
+                        detail.summary.best_edge_distance = distance;
+                        detail.best_child = child;
+                    }
+                    ++detail.summary.winning_count;
                 }
             }
         }
@@ -644,12 +752,14 @@ int main(int argc, char** argv) {
     int single_gap_max = -1;
     int single_gap_children_max = -1;
     int boundary_grid_sum = -1;
+    int balanced_boundary_response_sum = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
     std::string initial_grid_csv;
     std::string initial_response_csv;
     std::string single_gap_csv;
     std::string single_gap_children_csv;
     std::string boundary_grid_csv;
+    std::string balanced_boundary_response_csv;
     for (int i = 1; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--to" && i + 1 < argc) {
@@ -676,10 +786,30 @@ int main(int argc, char** argv) {
             boundary_grid_sum = std::atoi(argv[++i]);
         } else if (arg == "--boundary-grid-csv" && i + 1 < argc) {
             boundary_grid_csv = argv[++i];
+        } else if (arg == "--balanced-boundary-response-sum" && i + 1 < argc) {
+            balanced_boundary_response_sum = std::atoi(argv[++i]);
+        } else if (arg == "--balanced-boundary-response-csv" && i + 1 < argc) {
+            balanced_boundary_response_csv = argv[++i];
         }
     }
 
     GapSolver solver;
+    if (balanced_boundary_response_sum >= 0) {
+        if (balanced_boundary_response_csv.empty()) {
+            std::cerr << "--balanced-boundary-response-csv is required with --balanced-boundary-response-sum\n";
+            return 2;
+        }
+        if (!solver.write_balanced_boundary_response_csv(
+                balanced_boundary_response_sum,
+                balanced_boundary_response_csv)) {
+            std::cerr << "failed to write " << balanced_boundary_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << balanced_boundary_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (boundary_grid_sum >= 0) {
         if (boundary_grid_csv.empty()) {
             std::cerr << "--boundary-grid-csv is required with --boundary-grid-sum\n";

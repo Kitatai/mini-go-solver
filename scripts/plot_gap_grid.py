@@ -20,20 +20,31 @@ def svg_text(x: int, y: int, text: str, size: int = 12, anchor: str = "middle") 
     )
 
 
-def read_grid(path: Path, column: str) -> tuple[int, dict[tuple[int, int], str]]:
+def read_grid(
+    path: Path,
+    column: str,
+    left_column: str,
+    right_column: str,
+) -> tuple[int, dict[tuple[int, int], str]]:
     cells: dict[tuple[int, int], str] = {}
     max_coord = 0
     with path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            left = int(row["left_len"])
-            right = int(row["right_len"])
+            left = int(row[left_column])
+            right = int(row[right_column])
             cells[(left, right)] = row[column]
             max_coord = max(max_coord, left, right)
     return max_coord, cells
 
 
-def render_svg(max_coord: int, cells: dict[tuple[int, int], str], title: str) -> str:
+def render_svg(
+    max_coord: int,
+    cells: dict[tuple[int, int], str],
+    title: str,
+    left_label: str,
+    right_label: str,
+) -> str:
     cell = 18
     left_pad = 58
     top_pad = 78
@@ -50,8 +61,8 @@ def render_svg(max_coord: int, cells: dict[tuple[int, int], str], title: str) ->
         '<rect width="100%" height="100%" fill="#ffffff"/>',
         svg_text(width // 2, 24, title, 18),
         svg_text(width // 2, 47, "Green: W / Red: L", 12),
-        svg_text(left_pad - 34, top_pad - 20, "left", 12),
-        svg_text(left_pad + (max_coord + 1) * cell // 2, top_pad - 20, "right_len", 12),
+        svg_text(left_pad - 34, top_pad - 20, left_label, 12),
+        svg_text(left_pad + (max_coord + 1) * cell // 2, top_pad - 20, right_label, 12),
     ]
 
     for right in range(max_coord + 1):
@@ -89,12 +100,20 @@ def main() -> None:
         choices=("current_player_result", "black_initial_result"),
         default="black_initial_result",
     )
+    parser.add_argument("--left-column", default="left_len")
+    parser.add_argument("--right-column", default="right_len")
+    parser.add_argument("--left-label", default="left")
+    parser.add_argument("--right-label", default="right_len")
+    parser.add_argument("--title", default=None)
     args = parser.parse_args()
 
-    max_coord, cells = read_grid(args.csv, args.column)
-    title = f"Initial two-gap grid: {args.column}"
+    max_coord, cells = read_grid(args.csv, args.column, args.left_column, args.right_column)
+    title = args.title or f"Initial two-gap grid: {args.column}"
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(render_svg(max_coord, cells, title), encoding="utf-8")
+    args.output.write_text(
+        render_svg(max_coord, cells, title, args.left_label, args.right_label),
+        encoding="utf-8",
+    )
     print(args.output)
 
 

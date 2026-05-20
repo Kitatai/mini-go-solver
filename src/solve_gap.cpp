@@ -129,10 +129,9 @@ public:
     bool find(std::string_view key, bool& value) const {
         std::uint64_t hash = hash_key(key);
         std::size_t index = static_cast<std::size_t>(hash) & mask_;
-        while (entries_[index].occupied) {
-            const Entry& entry = entries_[index];
-            if (entry.hash == hash && key_equals(entry, key)) {
-                value = entry.value;
+        while (flags_[index] != 0) {
+            if (hashes_[index] == hash && key_equals(index, key)) {
+                value = flags_[index] == 2;
                 return true;
             }
             index = (index + 1) & mask_;
@@ -141,16 +140,15 @@ public:
     }
 
     void emplace(std::string_view key, bool value) {
-        if ((size_ + 1) * 10 >= entries_.size() * 7) {
-            rehash(entries_.size() * 2);
+        if ((size_ + 1) * 10 >= hashes_.size() * 7) {
+            rehash(hashes_.size() * 2);
         }
 
         std::uint64_t hash = hash_key(key);
         std::size_t index = static_cast<std::size_t>(hash) & mask_;
-        while (entries_[index].occupied) {
-            Entry& entry = entries_[index];
-            if (entry.hash == hash && key_equals(entry, key)) {
-                entry.value = value;
+        while (flags_[index] != 0) {
+            if (hashes_[index] == hash && key_equals(index, key)) {
+                flags_[index] = value ? 2 : 1;
                 return;
             }
             index = (index + 1) & mask_;
@@ -158,7 +156,10 @@ public:
 
         std::uint64_t offset = key_bytes_.size();
         key_bytes_.insert(key_bytes_.end(), key.begin(), key.end());
-        entries_[index] = Entry{hash, offset, static_cast<std::uint16_t>(key.size()), value, true};
+        hashes_[index] = hash;
+        offsets_[index] = offset;
+        lengths_[index] = static_cast<std::uint16_t>(key.size());
+        flags_[index] = value ? 2 : 1;
         ++size_;
     }
 
@@ -167,35 +168,41 @@ public:
     }
 
 private:
-    struct Entry {
-        std::uint64_t hash = 0;
-        std::uint64_t offset = 0;
-        std::uint16_t length = 0;
-        bool value = false;
-        bool occupied = false;
-    };
-
-    bool key_equals(const Entry& entry, std::string_view key) const {
-        return entry.length == key.size()
-            && std::memcmp(key_bytes_.data() + entry.offset, key.data(), entry.length) == 0;
+    bool key_equals(std::size_t index, std::string_view key) const {
+        return lengths_[index] == key.size()
+            && std::memcmp(key_bytes_.data() + offsets_[index], key.data(), lengths_[index]) == 0;
     }
 
     void rehash(std::size_t capacity) {
-        std::vector<Entry> old = std::move(entries_);
-        entries_.assign(capacity, Entry{});
-        mask_ = entries_.size() - 1;
+        std::vector<std::uint64_t> old_hashes = std::move(hashes_);
+        std::vector<std::uint64_t> old_offsets = std::move(offsets_);
+        std::vector<std::uint16_t> old_lengths = std::move(lengths_);
+        std::vector<std::uint8_t> old_flags = std::move(flags_);
 
-        for (const Entry& entry : old) {
-            if (!entry.occupied) continue;
-            std::size_t index = static_cast<std::size_t>(entry.hash) & mask_;
-            while (entries_[index].occupied) {
+        hashes_.assign(capacity, 0);
+        offsets_.assign(capacity, 0);
+        lengths_.assign(capacity, 0);
+        flags_.assign(capacity, 0);
+        mask_ = hashes_.size() - 1;
+
+        for (std::size_t old_index = 0; old_index < old_flags.size(); ++old_index) {
+            if (old_flags[old_index] == 0) continue;
+            std::uint64_t hash = old_hashes[old_index];
+            std::size_t index = static_cast<std::size_t>(hash) & mask_;
+            while (flags_[index] != 0) {
                 index = (index + 1) & mask_;
             }
-            entries_[index] = entry;
+            hashes_[index] = hash;
+            offsets_[index] = old_offsets[old_index];
+            lengths_[index] = old_lengths[old_index];
+            flags_[index] = old_flags[old_index];
         }
     }
 
-    std::vector<Entry> entries_;
+    std::vector<std::uint64_t> hashes_;
+    std::vector<std::uint64_t> offsets_;
+    std::vector<std::uint16_t> lengths_;
+    std::vector<std::uint8_t> flags_;
     std::vector<char> key_bytes_;
     std::uint64_t size_ = 0;
     std::size_t mask_ = 0;

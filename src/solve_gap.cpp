@@ -66,16 +66,24 @@ std::vector<Gap> pass_turn(std::vector<Gap> gaps) {
     return normalize(std::move(gaps));
 }
 
-std::string pack_state(const std::vector<Gap>& gaps) {
-    std::string key;
-    key.reserve(gaps.size() * 2);
+struct PackedKey {
+    std::array<char, 512> bytes{};
+    std::size_t length = 0;
+
+    std::string_view view() const {
+        return std::string_view(bytes.data(), length);
+    }
+};
+
+PackedKey pack_state(const std::vector<Gap>& gaps) {
+    PackedKey key;
     for (Gap g : gaps) {
         std::uint16_t packed = static_cast<std::uint16_t>(
             (static_cast<std::uint16_t>(g.m) << 4)
             | (static_cast<std::uint16_t>(g.left) << 2)
             | static_cast<std::uint16_t>(g.right));
-        key.push_back(static_cast<char>(packed & 0xff));
-        key.push_back(static_cast<char>(packed >> 8));
+        key.bytes[key.length++] = static_cast<char>(packed & 0xff);
+        key.bytes[key.length++] = static_cast<char>(packed >> 8);
     }
     return key;
 }
@@ -97,7 +105,7 @@ public:
         rehash(1ULL << 20);
     }
 
-    bool find(const std::string& key, bool& value) const {
+    bool find(std::string_view key, bool& value) const {
         std::uint64_t hash = hash_key(key);
         std::size_t index = static_cast<std::size_t>(hash) & mask_;
         while (entries_[index].occupied) {
@@ -111,7 +119,7 @@ public:
         return false;
     }
 
-    void emplace(std::string&& key, bool value) {
+    void emplace(std::string_view key, bool value) {
         if ((size_ + 1) * 10 >= entries_.size() * 7) {
             rehash(entries_.size() * 2);
         }
@@ -146,7 +154,7 @@ private:
         bool occupied = false;
     };
 
-    bool key_equals(const Entry& entry, const std::string& key) const {
+    bool key_equals(const Entry& entry, std::string_view key) const {
         return entry.length == key.size()
             && std::memcmp(key_bytes_.data() + entry.offset, key.data(), entry.length) == 0;
     }
@@ -184,9 +192,10 @@ public:
 
 private:
     bool win_state(const std::vector<Gap>& state) {
-        std::string key = pack_state(state);
+        PackedKey key = pack_state(state);
+        std::string_view key_view = key.view();
         bool memo_value = false;
-        if (memo_.find(key, memo_value)) return memo_value;
+        if (memo_.find(key_view, memo_value)) return memo_value;
 
         for (std::size_t gap_index = 0; gap_index < state.size(); ++gap_index) {
             if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) {
@@ -217,13 +226,13 @@ private:
 
                 std::vector<Gap> child = pass_turn(std::move(next));
                 if (!win_state(child)) {
-                    memo_.emplace(std::move(key), true);
+                    memo_.emplace(key_view, true);
                     return true;
                 }
             }
         }
 
-        memo_.emplace(std::move(key), false);
+        memo_.emplace(key_view, false);
         return false;
     }
 

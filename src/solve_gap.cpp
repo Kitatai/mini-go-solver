@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -8,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -78,6 +80,98 @@ std::string pack_state(const std::vector<Gap>& gaps) {
     return key;
 }
 
+std::uint64_t hash_key(std::string_view key) {
+    std::uint64_t h = 0x9e3779b97f4a7c15ULL ^ key.size();
+    for (unsigned char c : key) {
+        h ^= static_cast<std::uint64_t>(c) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+    }
+    h = (h ^ (h >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    h = (h ^ (h >> 27)) * 0x94d049bb133111ebULL;
+    h ^= h >> 31;
+    return h;
+}
+
+class MemoTable {
+public:
+    MemoTable() {
+        rehash(1ULL << 20);
+    }
+
+    bool find(const std::string& key, bool& value) const {
+        std::uint64_t hash = hash_key(key);
+        std::size_t index = static_cast<std::size_t>(hash) & mask_;
+        while (entries_[index].occupied) {
+            const Entry& entry = entries_[index];
+            if (entry.hash == hash && key_equals(entry, key)) {
+                value = entry.value;
+                return true;
+            }
+            index = (index + 1) & mask_;
+        }
+        return false;
+    }
+
+    void emplace(std::string&& key, bool value) {
+        if ((size_ + 1) * 10 >= entries_.size() * 7) {
+            rehash(entries_.size() * 2);
+        }
+
+        std::uint64_t hash = hash_key(key);
+        std::size_t index = static_cast<std::size_t>(hash) & mask_;
+        while (entries_[index].occupied) {
+            Entry& entry = entries_[index];
+            if (entry.hash == hash && key_equals(entry, key)) {
+                entry.value = value;
+                return;
+            }
+            index = (index + 1) & mask_;
+        }
+
+        std::uint64_t offset = key_bytes_.size();
+        key_bytes_.insert(key_bytes_.end(), key.begin(), key.end());
+        entries_[index] = Entry{hash, offset, static_cast<std::uint16_t>(key.size()), value, true};
+        ++size_;
+    }
+
+    std::uint64_t size() const {
+        return size_;
+    }
+
+private:
+    struct Entry {
+        std::uint64_t hash = 0;
+        std::uint64_t offset = 0;
+        std::uint16_t length = 0;
+        bool value = false;
+        bool occupied = false;
+    };
+
+    bool key_equals(const Entry& entry, const std::string& key) const {
+        return entry.length == key.size()
+            && std::memcmp(key_bytes_.data() + entry.offset, key.data(), entry.length) == 0;
+    }
+
+    void rehash(std::size_t capacity) {
+        std::vector<Entry> old = std::move(entries_);
+        entries_.assign(capacity, Entry{});
+        mask_ = entries_.size() - 1;
+
+        for (const Entry& entry : old) {
+            if (!entry.occupied) continue;
+            std::size_t index = static_cast<std::size_t>(entry.hash) & mask_;
+            while (entries_[index].occupied) {
+                index = (index + 1) & mask_;
+            }
+            entries_[index] = entry;
+        }
+    }
+
+    std::vector<Entry> entries_;
+    std::vector<char> key_bytes_;
+    std::uint64_t size_ = 0;
+    std::size_t mask_ = 0;
+};
+
 class GapSolver {
 public:
     bool win(std::vector<Gap> gaps) {
@@ -91,8 +185,8 @@ public:
 private:
     bool win_state(const std::vector<Gap>& state) {
         std::string key = pack_state(state);
-        auto it = memo_.find(key);
-        if (it != memo_.end()) return it->second;
+        bool memo_value = false;
+        if (memo_.find(key, memo_value)) return memo_value;
 
         for (std::size_t gap_index = 0; gap_index < state.size(); ++gap_index) {
             if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) {
@@ -133,7 +227,7 @@ private:
         return false;
     }
 
-    std::unordered_map<std::string, bool> memo_;
+    MemoTable memo_;
 };
 
 std::vector<char> gap_row(int n, GapSolver& solver) {

@@ -140,6 +140,26 @@ This is not sufficient. An all-winning-response table for `P(s)` up to `s = 24` 
 
 Thus, the proof cannot be a direct copy of the odd-board center proof. The near-balanced two-gap state has a weaker, boundary-sensitive symmetry that requires case distinctions by local gap size and boundary type.
 
+## Untouched-Gap Response Lemma Candidate
+
+The all-winning-response table up to `s = 40` shows a stronger useful fact.
+
+For every legal move from `P(s)`, there is a winning response in the other original gap, namely the gap that was not touched by the move.
+
+This holds for all 703 legal moves in the checked range.
+
+Thus, the two gaps are still strategically paired, but not by a simple position mirror. The response position inside the untouched gap depends on boundary type and local gap sizes.
+
+This suggests replacing the failed mirror rule with the following lemma candidate:
+
+```text
+Untouched-gap response lemma:
+In P(s), any legal move in one original gap has a response
+inside the other original gap that moves to a smaller losing state.
+```
+
+If this lemma can be proved with an explicit position rule, then the proof of `P(s)` becomes much simpler.
+
 ## More Promising Proof Form
 
 The computations suggest proving a local response lemma rather than enumerating all global shapes.

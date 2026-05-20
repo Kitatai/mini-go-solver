@@ -446,6 +446,24 @@ public:
         return true;
     }
 
+    bool write_auxiliary_response_csv(int max_r, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,r,total_empty,state,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "child_gap_count,child_gaps,"
+            << "best_response_gap_m,best_response_gap_left,best_response_gap_right,best_response_pos,"
+            << "best_response_edge_distance,winning_response_count,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int r = 1; r <= max_r; ++r) {
+            if (!write_auxiliary_responses(out, "A", r, auxiliary_family_a(r))) return false;
+            if (!write_auxiliary_responses(out, "B", r, auxiliary_family_b(r))) return false;
+        }
+        if (!write_auxiliary_responses(out, "C", 3, auxiliary_family_c())) return false;
+        return true;
+    }
+
     std::uint64_t states() const {
         return memo_.size();
     }
@@ -512,6 +530,54 @@ private:
             << total_empty(state) << ','
             << (current_wins ? 'W' : 'L') << ','
             << quote_gap_list(state) << '\n';
+    }
+
+    bool write_auxiliary_responses(std::ofstream& out, const char* family, int r, GapList state) {
+        if (win_state(state)) {
+            std::cerr << "auxiliary state is not losing: family=" << family
+                      << " r=" << r << '\n';
+            return false;
+        }
+
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+
+                GapList child = child_after_move(state, gap_index, pos);
+                ResponseDetail response;
+                bool has_response = summarize_winning_moves(child, response);
+                if (!has_response) {
+                    std::cerr << "missing auxiliary response: family=" << family
+                              << " r=" << r
+                              << " gap_m=" << static_cast<int>(gap.m)
+                              << " pos=" << pos << '\n';
+                    return false;
+                }
+
+                out << family << ','
+                    << r << ','
+                    << total_empty(state) << ','
+                    << quote_gap_list(state) << ','
+                    << static_cast<int>(gap.m) << ','
+                    << static_cast<int>(gap.left) << ','
+                    << static_cast<int>(gap.right) << ','
+                    << pos << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << ','
+                    << static_cast<int>(response.summary.best.gap_m) << ','
+                    << static_cast<int>(response.summary.best.gap_left) << ','
+                    << static_cast<int>(response.summary.best.gap_right) << ','
+                    << static_cast<int>(response.summary.best.pos) << ','
+                    << static_cast<int>(response.summary.best_edge_distance) << ','
+                    << response.summary.winning_count << ','
+                    << response.best_child.size << ','
+                    << quote_gap_list(response.best_child) << '\n';
+            }
+        }
+        return true;
     }
 
     GapList single_gap_state(int m, std::uint8_t left, std::uint8_t right) {
@@ -814,6 +880,7 @@ int main(int argc, char** argv) {
     int boundary_grid_sum = -1;
     int balanced_boundary_response_sum = -1;
     int auxiliary_family_max = -1;
+    int auxiliary_response_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
     std::string initial_grid_csv;
     std::string initial_response_csv;
@@ -822,6 +889,7 @@ int main(int argc, char** argv) {
     std::string boundary_grid_csv;
     std::string balanced_boundary_response_csv;
     std::string auxiliary_family_csv;
+    std::string auxiliary_response_csv;
     for (int i = 1; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--to" && i + 1 < argc) {
@@ -856,10 +924,28 @@ int main(int argc, char** argv) {
             auxiliary_family_max = std::atoi(argv[++i]);
         } else if (arg == "--auxiliary-family-csv" && i + 1 < argc) {
             auxiliary_family_csv = argv[++i];
+        } else if (arg == "--auxiliary-response-max" && i + 1 < argc) {
+            auxiliary_response_max = std::atoi(argv[++i]);
+        } else if (arg == "--auxiliary-response-csv" && i + 1 < argc) {
+            auxiliary_response_csv = argv[++i];
         }
     }
 
     GapSolver solver;
+    if (auxiliary_response_max >= 0) {
+        if (auxiliary_response_csv.empty()) {
+            std::cerr << "--auxiliary-response-csv is required with --auxiliary-response-max\n";
+            return 2;
+        }
+        if (!solver.write_auxiliary_response_csv(auxiliary_response_max, auxiliary_response_csv)) {
+            std::cerr << "failed to write " << auxiliary_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << auxiliary_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (auxiliary_family_max >= 0) {
         if (auxiliary_family_csv.empty()) {
             std::cerr << "--auxiliary-family-csv is required with --auxiliary-family-max\n";

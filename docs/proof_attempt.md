@@ -302,6 +302,28 @@ Exact independent DP checks confirm all six families are losing for
 `1 <= n <= 13`. Nearby families such as `WO(n) + MM(n)` and `MO(n) + WM(n)`
 are winning for `n >= 2`, so the boundary labels are essential.
 
+Full-response analysis for the six families gives a stronger closure candidate.
+For every legal move in the checked range `1 <= n <= 18`, there is a winning
+response in the untouched original gap. The required response formulas are:
+
+```text
+MO(n) + MO(n):          q = p
+OO(n) + MM(n):          q = p
+OO(n) + WM(n):          q = p or q = u - 1 - p
+OO(n) + WM(n + 1):      q = m - p - 1 or q = u - 1 - (m - p - 1)
+WO(n) + MO(n):          q = p or q = u - 1 - p
+WO(n + 1) + MO(n):      q = u - 1 - p or q = u - 1 - (m - p - 1)
+```
+
+Here `m` is the length of the gap where the first move was played, `u` is the
+length of the untouched gap, `p` is the first move position, and `q` is the
+response position.
+
+This is the current best route to completion. The proof should show for each of
+the six families that the stated response is legal and that the resulting state
+is a disjoint sum of smaller six-family states, possibly with one-cell gaps that
+have no legal move.
+
 ## More Promising Proof Form
 
 The computations suggest proving a local response lemma rather than enumerating all global shapes.

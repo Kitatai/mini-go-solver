@@ -506,6 +506,46 @@ public:
         return true;
     }
 
+    bool write_six_family_response_csv(int max_n, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,n,total_empty,state,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "child_gap_count,child_gaps,"
+            << "best_response_gap_m,best_response_gap_left,best_response_gap_right,best_response_pos,"
+            << "best_response_edge_distance,winning_response_count,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int n = 1; n <= max_n; ++n) {
+            if (!write_six_family_responses(out, "MO_MO", n, six_family_mo_mo(n))) return false;
+            if (!write_six_family_responses(out, "OO_MM", n, six_family_oo_mm(n))) return false;
+            if (!write_six_family_responses(out, "OO_WM", n, six_family_oo_wm(n))) return false;
+            if (!write_six_family_responses(out, "OO_WM_PLUS", n, six_family_oo_wm_plus(n))) return false;
+            if (!write_six_family_responses(out, "WO_MO", n, six_family_wo_mo(n))) return false;
+            if (!write_six_family_responses(out, "WO_PLUS_MO", n, six_family_wo_plus_mo(n))) return false;
+        }
+        return true;
+    }
+
+    bool write_six_family_all_response_csv(int max_n, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,n,total_empty,state,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "response_gap_m,response_gap_left,response_gap_right,response_pos,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int n = 1; n <= max_n; ++n) {
+            if (!write_six_family_all_responses(out, "MO_MO", n, six_family_mo_mo(n))) return false;
+            if (!write_six_family_all_responses(out, "OO_MM", n, six_family_oo_mm(n))) return false;
+            if (!write_six_family_all_responses(out, "OO_WM", n, six_family_oo_wm(n))) return false;
+            if (!write_six_family_all_responses(out, "OO_WM_PLUS", n, six_family_oo_wm_plus(n))) return false;
+            if (!write_six_family_all_responses(out, "WO_MO", n, six_family_wo_mo(n))) return false;
+            if (!write_six_family_all_responses(out, "WO_PLUS_MO", n, six_family_wo_plus_mo(n))) return false;
+        }
+        return true;
+    }
+
     std::uint64_t states() const {
         return memo_.size();
     }
@@ -555,6 +595,39 @@ private:
         state.push_back(Gap{3, OPP, OPP});
         normalize_in_place(state);
         return state;
+    }
+
+    GapList two_gap_state(int a, std::uint8_t a_left, std::uint8_t a_right,
+                          int b, std::uint8_t b_left, std::uint8_t b_right) {
+        GapList state;
+        state.push_back(Gap{static_cast<std::uint8_t>(a), a_left, a_right});
+        state.push_back(Gap{static_cast<std::uint8_t>(b), b_left, b_right});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList six_family_mo_mo(int n) {
+        return two_gap_state(n, ME, OPP, n, ME, OPP);
+    }
+
+    GapList six_family_oo_mm(int n) {
+        return two_gap_state(n, OPP, OPP, n, ME, ME);
+    }
+
+    GapList six_family_oo_wm(int n) {
+        return two_gap_state(n, OPP, OPP, n, WALL, ME);
+    }
+
+    GapList six_family_oo_wm_plus(int n) {
+        return two_gap_state(n, OPP, OPP, n + 1, WALL, ME);
+    }
+
+    GapList six_family_wo_mo(int n) {
+        return two_gap_state(n, WALL, OPP, n, ME, OPP);
+    }
+
+    GapList six_family_wo_plus_mo(int n) {
+        return two_gap_state(n + 1, WALL, OPP, n, ME, OPP);
     }
 
     int total_empty(const GapList& state) const {
@@ -620,6 +693,121 @@ private:
             }
         }
         return true;
+    }
+
+    bool write_six_family_responses(std::ofstream& out, const char* family, int n, GapList state) {
+        if (win_state(state)) {
+            std::cerr << "six-family state is not losing: family=" << family
+                      << " n=" << n << '\n';
+            return false;
+        }
+
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+
+                GapList child = child_after_move(state, gap_index, pos);
+                ResponseDetail response;
+                bool has_response = summarize_winning_moves(child, response);
+                if (!has_response) {
+                    std::cerr << "missing six-family response: family=" << family
+                              << " n=" << n
+                              << " gap_m=" << static_cast<int>(gap.m)
+                              << " pos=" << pos << '\n';
+                    return false;
+                }
+
+                out << family << ','
+                    << n << ','
+                    << total_empty(state) << ','
+                    << quote_gap_list(state) << ','
+                    << static_cast<int>(gap.m) << ','
+                    << static_cast<int>(gap.left) << ','
+                    << static_cast<int>(gap.right) << ','
+                    << pos << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << ','
+                    << static_cast<int>(response.summary.best.gap_m) << ','
+                    << static_cast<int>(response.summary.best.gap_left) << ','
+                    << static_cast<int>(response.summary.best.gap_right) << ','
+                    << static_cast<int>(response.summary.best.pos) << ','
+                    << static_cast<int>(response.summary.best_edge_distance) << ','
+                    << response.summary.winning_count << ','
+                    << response.best_child.size << ','
+                    << quote_gap_list(response.best_child) << '\n';
+            }
+        }
+        return true;
+    }
+
+    bool write_six_family_all_responses(std::ofstream& out, const char* family, int n, GapList state) {
+        if (win_state(state)) {
+            std::cerr << "six-family state is not losing: family=" << family
+                      << " n=" << n << '\n';
+            return false;
+        }
+
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+
+                GapList child = child_after_move(state, gap_index, pos);
+                if (!write_all_six_family_winning_responses(out, family, n, state, gap, pos, child)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    bool write_all_six_family_winning_responses(
+        std::ofstream& out,
+        const char* family,
+        int n,
+        GapList original_state,
+        Gap move_gap,
+        int move_pos,
+        const GapList& state) {
+        if (!win_state(state)) return false;
+        bool found = false;
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, gap_index, pos);
+                if (win_state(child)) continue;
+                found = true;
+                out << family << ','
+                    << n << ','
+                    << total_empty(original_state) << ','
+                    << quote_gap_list(original_state) << ','
+                    << static_cast<int>(move_gap.m) << ','
+                    << static_cast<int>(move_gap.left) << ','
+                    << static_cast<int>(move_gap.right) << ','
+                    << move_pos << ','
+                    << static_cast<int>(gap.m) << ','
+                    << static_cast<int>(gap.left) << ','
+                    << static_cast<int>(gap.right) << ','
+                    << pos << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << '\n';
+            }
+        }
+        if (!found) {
+            std::cerr << "missing all six-family response: family=" << family
+                      << " n=" << n
+                      << " gap_m=" << static_cast<int>(move_gap.m)
+                      << " pos=" << move_pos << '\n';
+        }
+        return found;
     }
 
     bool write_all_winning_responses(
@@ -966,6 +1154,8 @@ int main(int argc, char** argv) {
     int balanced_boundary_all_response_sum = -1;
     int auxiliary_family_max = -1;
     int auxiliary_response_max = -1;
+    int six_family_response_max = -1;
+    int six_family_all_response_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
     std::string initial_grid_csv;
     std::string initial_response_csv;
@@ -976,6 +1166,8 @@ int main(int argc, char** argv) {
     std::string balanced_boundary_all_response_csv;
     std::string auxiliary_family_csv;
     std::string auxiliary_response_csv;
+    std::string six_family_response_csv;
+    std::string six_family_all_response_csv;
     for (int i = 1; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--to" && i + 1 < argc) {
@@ -1018,10 +1210,46 @@ int main(int argc, char** argv) {
             auxiliary_response_max = std::atoi(argv[++i]);
         } else if (arg == "--auxiliary-response-csv" && i + 1 < argc) {
             auxiliary_response_csv = argv[++i];
+        } else if (arg == "--six-family-response-max" && i + 1 < argc) {
+            six_family_response_max = std::atoi(argv[++i]);
+        } else if (arg == "--six-family-response-csv" && i + 1 < argc) {
+            six_family_response_csv = argv[++i];
+        } else if (arg == "--six-family-all-response-max" && i + 1 < argc) {
+            six_family_all_response_max = std::atoi(argv[++i]);
+        } else if (arg == "--six-family-all-response-csv" && i + 1 < argc) {
+            six_family_all_response_csv = argv[++i];
         }
     }
 
     GapSolver solver;
+    if (six_family_all_response_max >= 0) {
+        if (six_family_all_response_csv.empty()) {
+            std::cerr << "--six-family-all-response-csv is required with --six-family-all-response-max\n";
+            return 2;
+        }
+        if (!solver.write_six_family_all_response_csv(six_family_all_response_max, six_family_all_response_csv)) {
+            std::cerr << "failed to write " << six_family_all_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << six_family_all_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (six_family_response_max >= 0) {
+        if (six_family_response_csv.empty()) {
+            std::cerr << "--six-family-response-csv is required with --six-family-response-max\n";
+            return 2;
+        }
+        if (!solver.write_six_family_response_csv(six_family_response_max, six_family_response_csv)) {
+            std::cerr << "failed to write " << six_family_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << six_family_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (balanced_boundary_all_response_sum >= 0) {
         if (balanced_boundary_all_response_csv.empty()) {
             std::cerr << "--balanced-boundary-all-response-csv is required with --balanced-boundary-all-response-sum\n";

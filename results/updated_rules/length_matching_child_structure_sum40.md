@@ -148,9 +148,12 @@ The invariant should not merely say that equal-length gaps are paired. It must
 remember the boundary type of the equal-length pair created by a
 length-matching response.
 
-The promising induction class is now the six-family mutual induction above.
+The six families above are the first natural response families. They are not,
+by themselves, a complete induction class. Later response analysis shows that
+children of these families can contain active small remnants, such as
+`MM(1)`, in addition to smaller paired components.
 
-The next proof task is to prove the six families simultaneously by explicit
-responses. The computational evidence suggests that `MO + MO` and `OO + MM`
-are zero-like components, while `WO + MO` and `OO + WM` are the two
-near-balanced wall families needed to close the induction.
+Thus the six families should be treated as response-location evidence: they
+show that untouched-gap length matching is stable in the checked range. A
+complete proof still needs a broader structural losing class that includes the
+active remnants produced by these responses.

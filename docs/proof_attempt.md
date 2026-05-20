@@ -1,202 +1,11 @@
 # Proof Attempt for the Near-Edge Losing Rule
 
-This note records the current proof attempt. It is not a completed proof.
+This note records the current proof structure. It is not a completed proof.
 
-## Target Chain
+## Notation
 
-The observed near-edge losing rule would follow from the following chain.
-
-```text
-Near-balanced boundary two-gap states are losing
-        =>
-Gap(m, opponent, wall) is winning for m >= 3
-        =>
-initial moves i = 1 and i = N - 2 are losing
-```
-
-The key target is therefore:
-
-```text
-P(s):
-Gap(ceil(s / 2), wall, opponent)
-+ Gap(floor(s / 2), current, opponent)
-is losing for the player to move.
-```
-
-Exact computation confirms `P(s)` for `2 <= s <= 40`.
-
-## Base Cases
-
-For `s = 2` and `s = 3`, the player to move has no legal move in the near-balanced boundary state.
-
-Thus, these are natural base cases for induction.
-
-## Inductive Shape
-
-Assume all required losing statements for smaller total empty count are known.
-
-In `P(s)`, the player to move makes an arbitrary legal move. A proof should give an explicit response that moves to a losing state with total empty count `s - 2`.
-
-Computationally, this is exactly what happens for `4 <= s <= 40`: every legal move has a response to a losing child state.
-
-Most responses are local. In the computed range, the best recorded response has edge distance:
-
-```text
-0: 56
-1: 341
-2: 298
-3: 6
-4: 2
-```
-
-So 695 of 703 responses lie within distance `2` from an edge of the response gap.
-
-## Main Obstruction
-
-The simple induction target `P(s)` alone is too narrow.
-
-Some valid responses do not return to another near-balanced two-gap state. The exceptional cases create a side gap of length `3` and then move to four-gap states.
-
-The exceptional pattern is:
-
-```text
-before:
-
-  boundary | . . . . . . . . . | opponent
-                         ^
-                         move
-
-after the move:
-
-  Gap(3, ..., opponent) + Gap(q, ..., ...) + unchanged gap
-```
-
-The response then moves to one of a few structured four-gap states.
-
-## Auxiliary Families
-
-The exceptional response targets suggest the following auxiliary losing families.
-
-Family A:
-
-```text
-Gap(3, current, opponent)
-+ Gap(3, current, opponent)
-+ Gap(r, opponent, opponent)
-+ Gap(r + 1, wall, current)
-```
-
-Family B:
-
-```text
-Gap(3, current, opponent)
-+ Gap(4, wall, opponent)
-+ Gap(r, current, current)
-+ Gap(r, opponent, opponent)
-```
-
-Special state C:
-
-```text
-Gap(3, wall, current)
-+ Gap(3, current, opponent)
-+ Gap(3, current, opponent)
-+ Gap(3, opponent, opponent)
-```
-
-Exact computation confirms:
-
-- Family A is losing for `1 <= r <= 18`;
-- Family B is losing for `1 <= r <= 18`;
-- C is losing.
-
-These families absorb the length-`3` side-gap exceptions in the computed range.
-
-## Failed Closure Attempt
-
-The next natural attempt was to prove `P(s)`, Family A, Family B, and C simultaneously.
-
-However, response analysis for Family A/B up to `r = 10` shows that their responses often move to five-gap or six-gap states, not just back to `P`, A, B, or C.
-
-The response child gap-count distribution was:
-
-```text
-2 gaps: 1
-3 gaps: 1
-4 gaps: 40
-5 gaps: 27
-6 gaps: 121
-```
-
-Thus, the four named families are not closed under one-step response.
-
-This does not disprove the induction approach. It means the induction invariant must be broader than a short finite list of named global shapes.
-
-## Failed Mirror Attempt
-
-Another natural attempt is a direct mirror strategy between the two near-balanced gaps.
-
-This is not sufficient. An all-winning-response table for `P(s)` up to `s = 24` shows that simple same-position or reflected-position responses in the opposite gap are not always winning responses. There are positions where winning responses exist, but none of the naive mirror responses work.
-
-Thus, the proof cannot be a direct copy of the odd-board center proof. The near-balanced two-gap state has a weaker, boundary-sensitive symmetry that requires case distinctions by local gap size and boundary type.
-
-## Untouched-Gap Response Lemma Candidate
-
-The all-winning-response table up to `s = 40` shows a stronger useful fact.
-
-For every legal move from `P(s)`, there is a winning response in the other original gap, namely the gap that was not touched by the move.
-
-This holds for all 703 legal moves in the checked range.
-
-Thus, the two gaps are still strategically paired, but not by a simple position mirror. The response position inside the untouched gap depends on boundary type and local gap sizes.
-
-This suggests replacing the failed mirror rule with the following lemma candidate:
-
-```text
-Untouched-gap response lemma:
-In P(s), any legal move in one original gap has a response
-inside the other original gap that moves to a smaller losing state.
-```
-
-If this lemma can be proved with an explicit position rule, then the proof of `P(s)` becomes much simpler.
-
-Further checks show that the response position cannot depend only on the length and boundary type of the untouched gap. For lengths at least `7`, the intersection of all winning response-position sets in the same untouched gap type is often empty. Thus, the response must also depend on the opponent's move position and on the split it creates in the other gap.
-
-The current narrowed target is therefore:
-
-```text
-For each legal move position p in one original gap of P(s),
-construct a response position q in the other original gap.
-The formula for q may depend on:
-  - which original gap was played;
-  - p;
-  - the two lengths created by that move;
-  - the boundary type of the untouched gap.
-```
-
-This is still much narrower than the original search problem, because the response gap is fixed.
-
-The all-response table suggests the following sharper rule. If the opponent's move in a gap of length `m` at position `p` creates sublengths
-
-```text
-p
-m - p - 1
-```
-
-and the untouched gap has length `u`, then a winning response can always be chosen from
-
-```text
-q = p
-q = u - 1 - p
-q = m - p - 1
-q = u - 1 - (m - p - 1)
-```
-
-whenever the position is legal. Equivalently, the response can be chosen so that one of the two sublengths it creates in the untouched gap equals one of the two sublengths created by the opponent's move. This held for all 703 legal moves from `P(s)` with `s <= 40`.
-
-This is the strongest current proof candidate: prove that a length-matching response of this form always exists and preserves the induction class.
-
-The response child has a more precise boundary-sensitive structure. Write:
+A gap is written as `Gap(m, L, R)`, where `m` is the number of empty points and
+`L`, `R` are the boundary types. In relative notation:
 
 ```text
 WO = Gap(length, wall, opponent)
@@ -206,88 +15,115 @@ MO = Gap(length, current, opponent)
 OO = Gap(length, opponent, opponent)
 ```
 
-If the first move is in the `MO` gap of `P(s)`, then the four length-matching
-forms create one of the following equal-length pairs after the response:
+The main two-gap state is
 
 ```text
-right-right: OO + MO
-right-left:  WO + MO
-left-right:  OO + MM
-left-left:   WO + MM
+P(a, b) = WO(a) + MO(b),  where a = b or a = b + 1.
 ```
 
-If the first move is in the `WO` gap of `P(s)`, the corresponding pairs are:
+Equivalently, for total empty count `s`,
 
 ```text
-right-right: MO + MO
-right-left:  OO + MO
-left-right:  MO + WM
-left-left:   OO + WM
+P(s) = WO(ceil(s / 2)) + MO(floor(s / 2)).
 ```
 
-Using the priority order `right-right`, `right-left`, `left-right`, `left-left`,
-the computed responses for all 703 legal moves from `P(s)` with `s <= 40`
-always contain the predicted equal-length pair.
+Exact computation confirms that `P(s)` is losing for `2 <= s <= 40`.
 
-This shows that the induction class must remember boundary-sensitive matched
-pairs, not just equal lengths.
+## Target Chain
 
-There is an even simpler rule in the checked range:
+The near-edge losing rule follows from the following chain:
 
 ```text
-If the first move is in the WO gap, respond by matching right with right.
-If the first move is in the MO gap, respond by matching left with right.
+P(s) is losing for all s >= 2
+        =>
+Gap(m, opponent, wall) is winning for m >= 3
+        =>
+initial moves i = 1 and i = N - 2 are losing.
 ```
 
-This covers all 703 legal moves from `P(s)` with `s <= 40`.
+The implication from `P(s)` to `Gap(m, opponent, wall)` is by a central move:
+the current player moves in `Gap(m, opponent, wall)` so that the opponent
+receives the near-balanced state `P(m - 1)`.
 
-For
+## Established Local Facts
+
+The following local facts are already proved in `docs/gap_game.md`.
+
+1. A non-capturing move adjacent to an opponent chain is losing.
+2. A non-capturing move at a board edge is losing.
+3. On an odd board, the center first move is winning by reflection.
+
+Thus the proof search can ignore non-capturing contact moves and non-capturing
+edge moves, except when they occur as terminal losing moves.
+
+## Response Rule for P
+
+Let the first move in one original gap have length `m` and position `p`. It
+splits that gap into lengths
 
 ```text
-P(a, b) = WO(a) + MO(b),  a = b or a = b + 1,
+p
+m - p - 1.
 ```
 
-the two cases have the following form.
-
-If the first move is in `WO(a)` at position `p`, the response in `MO(b)` at
+Let the untouched original gap have length `u`. For every legal move from
+`P(s)` with `s <= 40`, a winning response exists in the untouched gap at a
+position that matches one of those two lengths:
 
 ```text
-q = b - a + p
+q = p
+q = u - 1 - p
+q = m - p - 1
+q = u - 1 - (m - p - 1)
 ```
 
-creates:
+For `P(a,b) = WO(a) + MO(b)`, the checked range admits an even simpler rule.
+
+If the first move is in `WO(a)` at position `p`, respond in the untouched
+`MO(b)` gap at
+
+```text
+q = b - a + p.
+```
+
+This matches the right sublengths and creates
 
 ```text
 MO(a - p - 1) + MO(a - p - 1)
 ```
 
-and leaves one of:
+together with one of:
 
 ```text
 OO(p) + WM(p)       when a = b,
 OO(p - 1) + WM(p)   when a = b + 1.
 ```
 
-If the first move is in `MO(b)` at position `p`, the response in `WO(a)` at
+If the first move is in `MO(b)` at position `p`, respond in the untouched
+`WO(a)` gap at
 
 ```text
-q = a - 1 - p
+q = a - 1 - p.
 ```
 
-creates:
+This matches the left sublengths and creates
 
 ```text
 OO(p) + MM(p)
 ```
 
-and leaves a smaller state of the same `P` form:
+together with a smaller `P`-type residual:
 
 ```text
 WO(b - p - 1) + MO(b - p - 1)       when a = b,
 WO(b - p) + MO(b - p - 1)           when a = b + 1.
 ```
 
-Thus the current proof target can be replaced by a six-family mutual induction:
+This explains why the following six losing families appear naturally.
+
+## Six Response Families
+
+The response rule for `P` leads to these six two-gap families:
 
 ```text
 MO(n) + MO(n)
@@ -298,13 +134,11 @@ WO(n) + MO(n)
 WO(n + 1) + MO(n)
 ```
 
-Exact independent DP checks confirm all six families are losing for
-`1 <= n <= 13`. Nearby families such as `WO(n) + MM(n)` and `MO(n) + WM(n)`
-are winning for `n >= 2`, so the boundary labels are essential.
+Exact checks confirm all six are losing for `1 <= n <= 18`. Full response
+analysis also shows that every legal move from these families has a winning
+response in the untouched original gap.
 
-Full-response analysis for the six families gives a stronger closure candidate.
-For every legal move in the checked range `1 <= n <= 18`, there is a winning
-response in the untouched original gap. The required response formulas are:
+The required response forms in the checked range are:
 
 ```text
 MO(n) + MO(n):          q = p
@@ -319,76 +153,83 @@ Here `m` is the length of the gap where the first move was played, `u` is the
 length of the untouched gap, `p` is the first move position, and `q` is the
 response position.
 
-This is the current best route to completion. The proof should show for each of
-the six families that the stated response is legal and that the resulting state
-is a disjoint sum of smaller six-family states, possibly with one-cell gaps that
-have no legal move.
+This is a response-location theorem candidate: it identifies where a response
+can be found. It is not yet a closed induction proof.
 
-This last sentence is too optimistic in its narrow form. The six-family
-response-location statement is stable, but the six families alone are not yet a
-closed induction class.
+## Closure Obstruction
 
-For instance, from `WO(8) + MO(8)`, a move in the `MO(8)` gap at position `1`
-has winning responses whose children include:
+The six families alone are not a closed induction class.
+
+For example, from
+
+```text
+WO(8) + MO(8)
+```
+
+a move in the `MO(8)` gap at position `1` has winning responses whose children
+include:
 
 ```text
 WO(1) + MM(1) + MO(6) + OO(6)
 ```
 
-Here `WO(1)` has no legal move, but `MM(1)` is live. Therefore this child is
-not justified by merely deleting inert one-cell gaps, nor is it a direct sum of
-the six families.
+The `WO(1)` component has no legal move and can be ignored as inert. However,
+`MM(1)` is live: it has a legal move. Therefore the child is not justified by
+deleting inert one-cell gaps, and it is not a direct sum of the six families.
 
-The next proof target is consequently broader:
-
-```text
-Define a structural losing class that includes the six families and the
-bounded active remnants, such as MM(1), that arise from their responses.
-Then prove this structural class is closed under the untouched-gap
-length-matching response.
-```
-
-The six-family result remains useful because it shows that the response gap and
-response formulas are highly constrained. What remains is the correct invariant
-for the response child.
-
-## More Promising Proof Form
-
-The computations suggest proving a local response lemma rather than enumerating all global shapes.
-
-A plausible form is:
+Similar active remnants include:
 
 ```text
-In every valid losing template of the induction,
-any move that does not create a length-3 side gap has a local response
-within distance 2 that reduces the total empty count.
-
-If a move creates a length-3 side gap, the response creates one of the
-auxiliary length-3 configurations, which is handled by the same local lemma.
+MM(1)
+MM(1) + MO(k) + OO(l)
+WM(2)
+WO(2)
 ```
 
-In this form, the induction invariant is not a fixed list of whole-board shapes. It is a local structural condition:
+These remnants occur inside losing response children, but they are not
+represented by the six-family list. A complete induction must therefore use a
+larger structural losing class.
 
-- no contact with opponent chains except by capture;
-- no non-capturing edge move;
-- every live chain has two liberties;
-- any exceptional length-`3` side gap is paired with a balancing component.
+## Current Invariant Candidate
 
-The next proof step is to state this structural invariant precisely and check whether every recorded response preserves it with smaller total empty count.
+The current candidate is not a finite list of whole-board shapes. It is a
+structural class with these features:
+
+1. Moves are considered only in effective gaps after excluding immediate
+   losing contact and edge moves.
+2. A move in one component should be answered in a paired untouched component.
+3. The response should match one of the sublengths created by the move.
+4. The response child may contain inert one-cell gaps.
+5. The response child may contain bounded active remnants, such as `MM(1)`,
+   when they are paired with larger boundary components.
+
+The missing step is to state this structural class precisely enough that it is
+closed under all legal moves and the length-matching response.
 
 ## Current Status
 
-The proof is not complete.
+What is currently established by proof:
 
-What has been reduced:
+```text
+non-capturing contact with opponent chain is losing
+non-capturing edge move is losing
+odd-board center first move is winning
+```
 
-1. The near-edge rule reduces to `P(s)`.
-2. `P(s)` is verified up to `s = 40`.
-3. The nonlocal exceptions to the simple response rule are exactly length-`3` side-gap cases in the computed range.
-4. Those exceptions are absorbed by structured auxiliary four-gap families in the computed range.
+What is currently established by exact computation:
 
-What remains:
+```text
+P(s) is losing for 2 <= s <= 40
+the length-matching untouched-gap response exists for all moves from P(s), s <= 40
+the six response families are losing for 1 <= n <= 18
+the six response families have untouched-gap responses for all moves, n <= 18
+```
 
-1. Define a structural induction class broad enough to include the auxiliary response targets.
-2. Prove that every legal move from a state in this class has an explicit response to a smaller state in the same class.
-3. Derive `P(s)` and hence the near-edge losing rule from that induction.
+What remains to complete the proof:
+
+1. Define the larger structural losing class that includes the six families and
+   their active remnants.
+2. Prove that every legal move from a state in this class has a legal
+   length-matching response.
+3. Prove that the response child is a smaller state in the same class.
+4. Deduce `P(s)` for all `s`, and hence the near-edge losing rule.

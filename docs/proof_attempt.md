@@ -196,6 +196,112 @@ whenever the position is legal. Equivalently, the response can be chosen so that
 
 This is the strongest current proof candidate: prove that a length-matching response of this form always exists and preserves the induction class.
 
+The response child has a more precise boundary-sensitive structure. Write:
+
+```text
+WO = Gap(length, wall, opponent)
+WM = Gap(length, wall, current)
+MM = Gap(length, current, current)
+MO = Gap(length, current, opponent)
+OO = Gap(length, opponent, opponent)
+```
+
+If the first move is in the `MO` gap of `P(s)`, then the four length-matching
+forms create one of the following equal-length pairs after the response:
+
+```text
+right-right: OO + MO
+right-left:  WO + MO
+left-right:  OO + MM
+left-left:   WO + MM
+```
+
+If the first move is in the `WO` gap of `P(s)`, the corresponding pairs are:
+
+```text
+right-right: MO + MO
+right-left:  OO + MO
+left-right:  MO + WM
+left-left:   OO + WM
+```
+
+Using the priority order `right-right`, `right-left`, `left-right`, `left-left`,
+the computed responses for all 703 legal moves from `P(s)` with `s <= 40`
+always contain the predicted equal-length pair.
+
+This shows that the induction class must remember boundary-sensitive matched
+pairs, not just equal lengths.
+
+There is an even simpler rule in the checked range:
+
+```text
+If the first move is in the WO gap, respond by matching right with right.
+If the first move is in the MO gap, respond by matching left with right.
+```
+
+This covers all 703 legal moves from `P(s)` with `s <= 40`.
+
+For
+
+```text
+P(a, b) = WO(a) + MO(b),  a = b or a = b + 1,
+```
+
+the two cases have the following form.
+
+If the first move is in `WO(a)` at position `p`, the response in `MO(b)` at
+
+```text
+q = b - a + p
+```
+
+creates:
+
+```text
+MO(a - p - 1) + MO(a - p - 1)
+```
+
+and leaves one of:
+
+```text
+OO(p) + WM(p)       when a = b,
+OO(p - 1) + WM(p)   when a = b + 1.
+```
+
+If the first move is in `MO(b)` at position `p`, the response in `WO(a)` at
+
+```text
+q = a - 1 - p
+```
+
+creates:
+
+```text
+OO(p) + MM(p)
+```
+
+and leaves a smaller state of the same `P` form:
+
+```text
+WO(b - p - 1) + MO(b - p - 1)       when a = b,
+WO(b - p) + MO(b - p - 1)           when a = b + 1.
+```
+
+Thus the current proof target can be replaced by a six-family mutual induction:
+
+```text
+MO(n) + MO(n)
+OO(n) + MM(n)
+OO(n) + WM(n)
+OO(n) + WM(n + 1)
+WO(n) + MO(n)
+WO(n + 1) + MO(n)
+```
+
+Exact independent DP checks confirm all six families are losing for
+`1 <= n <= 13`. Nearby families such as `WO(n) + MM(n)` and `MO(n) + WM(n)`
+are winning for `n >= 2`, so the boundary labels are essential.
+
 ## More Promising Proof Form
 
 The computations suggest proving a local response lemma rather than enumerating all global shapes.

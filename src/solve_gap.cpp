@@ -26,6 +26,25 @@ struct Gap {
     std::uint8_t right;
 };
 
+constexpr std::size_t MAX_GAPS = 256;
+
+struct GapList {
+    std::array<Gap, MAX_GAPS> gaps{};
+    std::size_t size = 0;
+
+    const Gap& operator[](std::size_t index) const {
+        return gaps[index];
+    }
+
+    Gap& operator[](std::size_t index) {
+        return gaps[index];
+    }
+
+    void push_back(Gap gap) {
+        gaps[size++] = gap;
+    }
+};
+
 bool operator<(const Gap& a, const Gap& b) {
     if (a.m != b.m) return a.m < b.m;
     if (a.left != b.left) return a.left < b.left;
@@ -47,23 +66,24 @@ Gap canonical_gap(Gap g) {
     return r < g ? r : g;
 }
 
-std::vector<Gap> normalize(std::vector<Gap> gaps) {
-    std::vector<Gap> out;
-    out.reserve(gaps.size());
-    for (Gap g : gaps) {
+void normalize_in_place(GapList& gaps) {
+    std::size_t out = 0;
+    for (std::size_t i = 0; i < gaps.size; ++i) {
+        Gap g = gaps[i];
         if (g.m == 0) continue;
-        out.push_back(canonical_gap(g));
+        gaps[out++] = canonical_gap(g);
     }
-    std::sort(out.begin(), out.end());
-    return out;
+    gaps.size = out;
+    std::sort(gaps.gaps.begin(), gaps.gaps.begin() + static_cast<std::ptrdiff_t>(gaps.size));
 }
 
-std::vector<Gap> pass_turn(std::vector<Gap> gaps) {
-    for (Gap& g : gaps) {
+void pass_turn_in_place(GapList& gaps) {
+    for (std::size_t i = 0; i < gaps.size; ++i) {
+        Gap& g = gaps[i];
         g.left = flip(g.left);
         g.right = flip(g.right);
     }
-    return normalize(std::move(gaps));
+    normalize_in_place(gaps);
 }
 
 struct PackedKey {
@@ -75,9 +95,10 @@ struct PackedKey {
     }
 };
 
-PackedKey pack_state(const std::vector<Gap>& gaps) {
+PackedKey pack_state(const GapList& gaps) {
     PackedKey key;
-    for (Gap g : gaps) {
+    for (std::size_t i = 0; i < gaps.size; ++i) {
+        Gap g = gaps[i];
         std::uint16_t packed = static_cast<std::uint16_t>(
             (static_cast<std::uint16_t>(g.m) << 4)
             | (static_cast<std::uint16_t>(g.left) << 2)
@@ -183,7 +204,10 @@ private:
 class GapSolver {
 public:
     bool win(std::vector<Gap> gaps) {
-        return win_state(normalize(std::move(gaps)));
+        GapList state;
+        for (Gap gap : gaps) state.push_back(gap);
+        normalize_in_place(state);
+        return win_state(state);
     }
 
     std::uint64_t states() const {
@@ -191,13 +215,13 @@ public:
     }
 
 private:
-    bool win_state(const std::vector<Gap>& state) {
+    bool win_state(const GapList& state) {
         PackedKey key = pack_state(state);
         std::string_view key_view = key.view();
         bool memo_value = false;
         if (memo_.find(key_view, memo_value)) return memo_value;
 
-        for (std::size_t gap_index = 0; gap_index < state.size(); ++gap_index) {
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
             if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) {
                 continue;
             }
@@ -211,9 +235,8 @@ private:
                     continue;
                 }
 
-                std::vector<Gap> next;
-                next.reserve(state.size() + 1);
-                for (std::size_t i = 0; i < state.size(); ++i) {
+                GapList next;
+                for (std::size_t i = 0; i < state.size; ++i) {
                     if (i != gap_index) next.push_back(state[i]);
                 }
                 if (pos > 0) {
@@ -224,8 +247,8 @@ private:
                     next.push_back(Gap{static_cast<std::uint8_t>(right_len), ME, gap.right});
                 }
 
-                std::vector<Gap> child = pass_turn(std::move(next));
-                if (!win_state(child)) {
+                pass_turn_in_place(next);
+                if (!win_state(next)) {
                     memo_.emplace(key_view, true);
                     return true;
                 }

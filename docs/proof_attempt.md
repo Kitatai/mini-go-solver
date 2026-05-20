@@ -324,6 +324,34 @@ the six families that the stated response is legal and that the resulting state
 is a disjoint sum of smaller six-family states, possibly with one-cell gaps that
 have no legal move.
 
+This last sentence is too optimistic in its narrow form. The six-family
+response-location statement is stable, but the six families alone are not yet a
+closed induction class.
+
+For instance, from `WO(8) + MO(8)`, a move in the `MO(8)` gap at position `1`
+has winning responses whose children include:
+
+```text
+WO(1) + MM(1) + MO(6) + OO(6)
+```
+
+Here `WO(1)` has no legal move, but `MM(1)` is live. Therefore this child is
+not justified by merely deleting inert one-cell gaps, nor is it a direct sum of
+the six families.
+
+The next proof target is consequently broader:
+
+```text
+Define a structural losing class that includes the six families and the
+bounded active remnants, such as MM(1), that arise from their responses.
+Then prove this structural class is closed under the untouched-gap
+length-matching response.
+```
+
+The six-family result remains useful because it shows that the response gap and
+response formulas are highly constrained. What remains is the correct invariant
+for the response child.
+
 ## More Promising Proof Form
 
 The computations suggest proving a local response lemma rather than enumerating all global shapes.

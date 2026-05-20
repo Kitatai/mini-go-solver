@@ -81,6 +81,45 @@ Some response children contain one-cell gaps with no legal moves, such as
 `Gap(1, wall, current)`. These are zero components in normal-play terms and can
 be ignored in a decomposition, but the proof should state this explicitly.
 
+## Closure Obstruction
+
+The six families are not yet a complete induction class if the proof requires
+the response child to decompose directly into a disjoint sum of the same six
+families.
+
+For example, from
+
+```text
+WO(8) + MO(8)
+```
+
+a move in the `MO(8)` gap at position `1` has winning responses, but typical
+response children include forms such as:
+
+```text
+WO(1) + MM(1) + MO(6) + OO(6)
+```
+
+The `WO(1)` component has no legal move and is inert, but `MM(1)` is not inert:
+it is a live one-move component. Therefore this child cannot be justified by
+discarding one-cell gaps alone.
+
+Similarly, response children of the six families may contain active small
+components such as:
+
+```text
+MM(1)
+MM(1) + MO(k) + OO(l)
+WM(2)
+WO(2)
+```
+
+These are losing in their full context, but they are not represented by the
+six-family list.
+
+Thus the current six-family statement is best understood as a response-location
+theorem, not yet as a closed induction proof.
+
 ## Current Proof Target
 
 The remaining task is to prove the six response rules above symbolically.
@@ -91,7 +130,11 @@ The desired proof form is:
 2. For each family, take an arbitrary legal move.
 3. Respond in the untouched gap using one of the listed formulas.
 4. Show the response is legal.
-5. Show the resulting state is a disjoint sum of smaller six-family states and
-   zero one-cell gaps.
+5. Show the resulting state belongs to a larger structural losing class.
 
-The checked data supports this plan through `n = 18`.
+The checked data supports the response-location part through `n = 18`.
+
+The next refinement is to replace the six-family list with a broader structural
+class that permits active bounded components such as `MM(1)` when they are
+paired with a larger boundary component. The proof should then show that this
+broader class is closed under the same untouched-gap response principle.

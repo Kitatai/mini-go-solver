@@ -296,20 +296,24 @@ public:
         std::ofstream out(path);
         if (!out) return false;
 
-        out << "m,current_player_result,first_win_pos,best_edge_pos,best_edge_distance,winning_move_count\n";
+        out << "m,current_player_result,first_win_pos,best_edge_pos,best_edge_distance,winning_move_count,winning_positions,edge_distances,center_distances\n";
         for (int m = 1; m <= max_m; ++m) {
             GapList state = single_gap_state(m, OPP, WALL);
-            ResponseSummary summary;
-            bool current_wins = summarize_winning_moves(state, summary);
+            std::vector<int> winning_positions;
+            bool current_wins = collect_winning_positions(state, winning_positions);
             out << m << ','
                 << (current_wins ? 'W' : 'L') << ',';
             if (current_wins) {
+                ResponseSummary summary = summarize_positions(Gap{static_cast<std::uint8_t>(m), OPP, WALL}, winning_positions);
                 out << static_cast<int>(summary.first.pos) << ','
                     << static_cast<int>(summary.best.pos) << ','
                     << static_cast<int>(summary.best_edge_distance) << ','
-                    << summary.winning_count << '\n';
+                    << summary.winning_count << ','
+                    << quote_join(winning_positions) << ','
+                    << quote_join(edge_distances(Gap{static_cast<std::uint8_t>(m), OPP, WALL}, winning_positions)) << ','
+                    << quote_join(center_distances(m, winning_positions)) << '\n';
             } else {
-                out << ",,,0\n";
+                out << ",,,0,\"\",\"\",\"\"\n";
             }
         }
         return true;
@@ -401,6 +405,71 @@ private:
             }
         }
         return found;
+    }
+
+    bool collect_winning_positions(const GapList& state, std::vector<int>& positions) {
+        if (!win_state(state)) return false;
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, gap_index, pos);
+                if (!win_state(child)) positions.push_back(pos);
+            }
+        }
+        return !positions.empty();
+    }
+
+    ResponseSummary summarize_positions(Gap gap, const std::vector<int>& positions) const {
+        ResponseSummary summary;
+        bool found = false;
+        for (int pos : positions) {
+            Move move{
+                gap.m,
+                gap.left,
+                gap.right,
+                static_cast<std::uint8_t>(pos),
+            };
+            std::uint8_t distance = edge_distance(gap, pos);
+            if (!found) {
+                summary.first = move;
+                summary.best = move;
+                summary.best_edge_distance = distance;
+                found = true;
+            } else if (distance < summary.best_edge_distance) {
+                summary.best = move;
+                summary.best_edge_distance = distance;
+            }
+            ++summary.winning_count;
+        }
+        return summary;
+    }
+
+    std::vector<int> edge_distances(Gap gap, const std::vector<int>& positions) const {
+        std::vector<int> values;
+        values.reserve(positions.size());
+        for (int pos : positions) values.push_back(edge_distance(gap, pos));
+        return values;
+    }
+
+    std::vector<int> center_distances(int m, const std::vector<int>& positions) const {
+        std::vector<int> values;
+        values.reserve(positions.size());
+        int center2 = m - 1;
+        for (int pos : positions) values.push_back(std::abs(2 * pos - center2));
+        return values;
+    }
+
+    std::string quote_join(const std::vector<int>& values) const {
+        std::string out = "\"";
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            if (i > 0) out.push_back(' ');
+            out += std::to_string(values[i]);
+        }
+        out.push_back('"');
+        return out;
     }
 
     bool win_state(const GapList& state) {

@@ -132,6 +132,14 @@ Thus, the four named families are not closed under one-step response.
 
 This does not disprove the induction approach. It means the induction invariant must be broader than a short finite list of named global shapes.
 
+## Failed Mirror Attempt
+
+Another natural attempt is a direct mirror strategy between the two near-balanced gaps.
+
+This is not sufficient. An all-winning-response table for `P(s)` up to `s = 24` shows that simple same-position or reflected-position responses in the opposite gap are not always winning responses. There are positions where winning responses exist, but none of the naive mirror responses work.
+
+Thus, the proof cannot be a direct copy of the odd-board center proof. The near-balanced two-gap state has a weaker, boundary-sensitive symmetry that requires case distinctions by local gap size and boundary type.
+
 ## More Promising Proof Form
 
 The computations suggest proving a local response lemma rather than enumerating all global shapes.

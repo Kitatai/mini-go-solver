@@ -433,6 +433,48 @@ public:
         return true;
     }
 
+    bool write_balanced_boundary_all_responses_csv(int max_sum, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "total_empty,wall_opp_len,me_opp_len,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "response_gap_m,response_gap_left,response_gap_right,response_pos,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int total = 2; total <= max_sum; ++total) {
+            int wall_opp_len = (total + 1) / 2;
+            int me_opp_len = total / 2;
+            GapList state = boundary_state(wall_opp_len, me_opp_len);
+            if (win_state(state)) {
+                std::cerr << "near-balanced boundary state is not losing for total="
+                          << total << '\n';
+                return false;
+            }
+
+            for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+                if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+                Gap gap = state[gap_index];
+                int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+                for (int pos = 0; pos < pos_limit; ++pos) {
+                    if (!is_legal_move(gap, pos)) continue;
+
+                    GapList child = child_after_move(state, gap_index, pos);
+                    if (!write_all_winning_responses(
+                            out,
+                            total,
+                            wall_opp_len,
+                            me_opp_len,
+                            gap,
+                            pos,
+                            child)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     bool write_auxiliary_family_csv(int max_r, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -578,6 +620,48 @@ private:
             }
         }
         return true;
+    }
+
+    bool write_all_winning_responses(
+        std::ofstream& out,
+        int total,
+        int wall_opp_len,
+        int me_opp_len,
+        Gap move_gap,
+        int move_pos,
+        const GapList& state) {
+        if (!win_state(state)) return false;
+        bool found = false;
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, gap_index, pos);
+                if (win_state(child)) continue;
+                found = true;
+                out << total << ','
+                    << wall_opp_len << ','
+                    << me_opp_len << ','
+                    << static_cast<int>(move_gap.m) << ','
+                    << static_cast<int>(move_gap.left) << ','
+                    << static_cast<int>(move_gap.right) << ','
+                    << move_pos << ','
+                    << static_cast<int>(gap.m) << ','
+                    << static_cast<int>(gap.left) << ','
+                    << static_cast<int>(gap.right) << ','
+                    << pos << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << '\n';
+            }
+        }
+        if (!found) {
+            std::cerr << "missing all-response row for total=" << total
+                      << " gap_m=" << static_cast<int>(move_gap.m)
+                      << " pos=" << move_pos << '\n';
+        }
+        return found;
     }
 
     GapList single_gap_state(int m, std::uint8_t left, std::uint8_t right) {
@@ -879,6 +963,7 @@ int main(int argc, char** argv) {
     int single_gap_children_max = -1;
     int boundary_grid_sum = -1;
     int balanced_boundary_response_sum = -1;
+    int balanced_boundary_all_response_sum = -1;
     int auxiliary_family_max = -1;
     int auxiliary_response_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
@@ -888,6 +973,7 @@ int main(int argc, char** argv) {
     std::string single_gap_children_csv;
     std::string boundary_grid_csv;
     std::string balanced_boundary_response_csv;
+    std::string balanced_boundary_all_response_csv;
     std::string auxiliary_family_csv;
     std::string auxiliary_response_csv;
     for (int i = 1; i < argc; ++i) {
@@ -920,6 +1006,10 @@ int main(int argc, char** argv) {
             balanced_boundary_response_sum = std::atoi(argv[++i]);
         } else if (arg == "--balanced-boundary-response-csv" && i + 1 < argc) {
             balanced_boundary_response_csv = argv[++i];
+        } else if (arg == "--balanced-boundary-all-response-sum" && i + 1 < argc) {
+            balanced_boundary_all_response_sum = std::atoi(argv[++i]);
+        } else if (arg == "--balanced-boundary-all-response-csv" && i + 1 < argc) {
+            balanced_boundary_all_response_csv = argv[++i];
         } else if (arg == "--auxiliary-family-max" && i + 1 < argc) {
             auxiliary_family_max = std::atoi(argv[++i]);
         } else if (arg == "--auxiliary-family-csv" && i + 1 < argc) {
@@ -932,6 +1022,22 @@ int main(int argc, char** argv) {
     }
 
     GapSolver solver;
+    if (balanced_boundary_all_response_sum >= 0) {
+        if (balanced_boundary_all_response_csv.empty()) {
+            std::cerr << "--balanced-boundary-all-response-csv is required with --balanced-boundary-all-response-sum\n";
+            return 2;
+        }
+        if (!solver.write_balanced_boundary_all_responses_csv(
+                balanced_boundary_all_response_sum,
+                balanced_boundary_all_response_csv)) {
+            std::cerr << "failed to write " << balanced_boundary_all_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << balanced_boundary_all_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (auxiliary_response_max >= 0) {
         if (auxiliary_response_csv.empty()) {
             std::cerr << "--auxiliary-response-csv is required with --auxiliary-response-max\n";

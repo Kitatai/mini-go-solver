@@ -176,6 +176,26 @@ The formula for q may depend on:
 
 This is still much narrower than the original search problem, because the response gap is fixed.
 
+The all-response table suggests the following sharper rule. If the opponent's move in a gap of length `m` at position `p` creates sublengths
+
+```text
+p
+m - p - 1
+```
+
+and the untouched gap has length `u`, then a winning response can always be chosen from
+
+```text
+q = p
+q = u - 1 - p
+q = m - p - 1
+q = u - 1 - (m - p - 1)
+```
+
+whenever the position is legal. Equivalently, the response can be chosen so that one of the two sublengths it creates in the untouched gap equals one of the two sublengths created by the opponent's move. This held for all 703 legal moves from `P(s)` with `s <= 40`.
+
+This is the strongest current proof candidate: prove that a length-matching response of this form always exists and preserves the induction class.
+
 ## More Promising Proof Form
 
 The computations suggest proving a local response lemma rather than enumerating all global shapes.

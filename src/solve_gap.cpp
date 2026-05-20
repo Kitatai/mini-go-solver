@@ -45,6 +45,13 @@ struct GapList {
     }
 };
 
+struct Move {
+    std::uint8_t gap_m = 0;
+    std::uint8_t gap_left = 0;
+    std::uint8_t gap_right = 0;
+    std::uint8_t pos = 0;
+};
+
 bool operator<(const Gap& a, const Gap& b) {
     if (a.m != b.m) return a.m < b.m;
     if (a.left != b.left) return a.left < b.left;
@@ -217,11 +224,123 @@ public:
         return win_state(state);
     }
 
+    bool win_initial_gap(int left_len, int right_len) {
+        return win_state(initial_gap_state(left_len, right_len));
+    }
+
+    bool write_initial_response_csv(int max_sum, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "left_len,right_len,total_empty,n,first,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "response_gap_m,response_gap_left,response_gap_right,response_pos\n";
+        for (int left_len = 1; left_len <= max_sum; ++left_len) {
+            for (int right_len = 1; right_len + left_len <= max_sum; ++right_len) {
+                GapList state = initial_gap_state(left_len, right_len);
+                if (win_state(state)) continue;
+
+                for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+                    if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+                    Gap gap = state[gap_index];
+                    int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+                    for (int pos = 0; pos < pos_limit; ++pos) {
+                        if (!is_legal_move(gap, pos)) continue;
+
+                        GapList child = child_after_move(state, gap_index, pos);
+                        Move response;
+                        bool has_response = first_winning_move(child, response);
+                        if (!has_response) {
+                            std::cerr << "missing response for left_len=" << left_len
+                                      << " right_len=" << right_len << '\n';
+                            return false;
+                        }
+
+                        int total_empty = left_len + right_len;
+                        out << left_len << ','
+                            << right_len << ','
+                            << total_empty << ','
+                            << total_empty + 1 << ','
+                            << left_len << ','
+                            << static_cast<int>(gap.m) << ','
+                            << static_cast<int>(gap.left) << ','
+                            << static_cast<int>(gap.right) << ','
+                            << pos << ','
+                            << static_cast<int>(response.gap_m) << ','
+                            << static_cast<int>(response.gap_left) << ','
+                            << static_cast<int>(response.gap_right) << ','
+                            << static_cast<int>(response.pos) << '\n';
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     std::uint64_t states() const {
         return memo_.size();
     }
 
 private:
+    GapList initial_gap_state(int left_len, int right_len) {
+        GapList state;
+        state.push_back(Gap{static_cast<std::uint8_t>(left_len), WALL, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(right_len), OPP, WALL});
+        normalize_in_place(state);
+        return state;
+    }
+
+    bool is_legal_move(Gap gap, int pos) const {
+        if ((pos == 0 && gap.left == WALL) || (pos == gap.m - 1 && gap.right == WALL)) {
+            return false;
+        }
+        if ((pos == 0 && gap.left == OPP) || (pos == gap.m - 1 && gap.right == OPP)) {
+            return false;
+        }
+        return true;
+    }
+
+    GapList child_after_move(const GapList& state, std::size_t gap_index, int pos) {
+        Gap gap = state[gap_index];
+        GapList next;
+        for (std::size_t i = 0; i < state.size; ++i) {
+            if (i != gap_index) next.push_back(state[i]);
+        }
+        if (pos > 0) {
+            next.push_back(Gap{static_cast<std::uint8_t>(pos), gap.left, ME});
+        }
+        int right_len = gap.m - pos - 1;
+        if (right_len > 0) {
+            next.push_back(Gap{static_cast<std::uint8_t>(right_len), ME, gap.right});
+        }
+
+        pass_turn_in_place(next);
+        return next;
+    }
+
+    bool first_winning_move(const GapList& state, Move& move) {
+        if (!win_state(state)) return false;
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, gap_index, pos);
+                if (!win_state(child)) {
+                    move = Move{
+                        gap.m,
+                        gap.left,
+                        gap.right,
+                        static_cast<std::uint8_t>(pos),
+                    };
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     bool win_state(const GapList& state) {
         PackedKey key = pack_state(state);
         std::string_view key_view = key.view();
@@ -235,26 +354,8 @@ private:
             Gap gap = state[gap_index];
             int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
             for (int pos = 0; pos < pos_limit; ++pos) {
-                if ((pos == 0 && gap.left == WALL) || (pos == gap.m - 1 && gap.right == WALL)) {
-                    continue;
-                }
-                if ((pos == 0 && gap.left == OPP) || (pos == gap.m - 1 && gap.right == OPP)) {
-                    continue;
-                }
-
-                GapList next;
-                for (std::size_t i = 0; i < state.size; ++i) {
-                    if (i != gap_index) next.push_back(state[i]);
-                }
-                if (pos > 0) {
-                    next.push_back(Gap{static_cast<std::uint8_t>(pos), gap.left, ME});
-                }
-                int right_len = gap.m - pos - 1;
-                if (right_len > 0) {
-                    next.push_back(Gap{static_cast<std::uint8_t>(right_len), ME, gap.right});
-                }
-
-                pass_turn_in_place(next);
+                if (!is_legal_move(gap, pos)) continue;
+                GapList next = child_after_move(state, gap_index, pos);
                 if (!win_state(next)) {
                     memo_.emplace(key_view, true);
                     return true;
@@ -287,11 +388,7 @@ std::vector<char> gap_row(int n, GapSolver& solver) {
 }
 
 bool initial_gap_current_player_wins(int left_len, int right_len, GapSolver& solver) {
-    std::vector<Gap> gaps = {
-        Gap{static_cast<std::uint8_t>(left_len), WALL, OPP},
-        Gap{static_cast<std::uint8_t>(right_len), OPP, WALL},
-    };
-    return solver.win(std::move(gaps));
+    return solver.win_initial_gap(left_len, right_len);
 }
 
 bool write_initial_grid_csv(int max_sum, const std::string& path, GapSolver& solver) {
@@ -346,8 +443,10 @@ std::unordered_map<int, std::vector<char>> parse_results(const std::string& path
 int main(int argc, char** argv) {
     int to = 37;
     int initial_grid_sum = -1;
+    int initial_response_sum = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
     std::string initial_grid_csv;
+    std::string initial_response_csv;
     for (int i = 1; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--to" && i + 1 < argc) {
@@ -358,10 +457,28 @@ int main(int argc, char** argv) {
             initial_grid_sum = std::atoi(argv[++i]);
         } else if (arg == "--initial-grid-csv" && i + 1 < argc) {
             initial_grid_csv = argv[++i];
+        } else if (arg == "--initial-response-sum" && i + 1 < argc) {
+            initial_response_sum = std::atoi(argv[++i]);
+        } else if (arg == "--initial-response-csv" && i + 1 < argc) {
+            initial_response_csv = argv[++i];
         }
     }
 
     GapSolver solver;
+    if (initial_response_sum >= 0) {
+        if (initial_response_csv.empty()) {
+            std::cerr << "--initial-response-csv is required with --initial-response-sum\n";
+            return 2;
+        }
+        if (!solver.write_initial_response_csv(initial_response_sum, initial_response_csv)) {
+            std::cerr << "failed to write " << initial_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << initial_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (initial_grid_sum >= 0) {
         if (initial_grid_csv.empty()) {
             std::cerr << "--initial-grid-csv is required with --initial-grid-sum\n";

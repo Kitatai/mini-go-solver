@@ -292,6 +292,29 @@ public:
         return true;
     }
 
+    bool write_single_gap_csv(int max_m, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "m,current_player_result,first_win_pos,best_edge_pos,best_edge_distance,winning_move_count\n";
+        for (int m = 1; m <= max_m; ++m) {
+            GapList state = single_gap_state(m, OPP, WALL);
+            ResponseSummary summary;
+            bool current_wins = summarize_winning_moves(state, summary);
+            out << m << ','
+                << (current_wins ? 'W' : 'L') << ',';
+            if (current_wins) {
+                out << static_cast<int>(summary.first.pos) << ','
+                    << static_cast<int>(summary.best.pos) << ','
+                    << static_cast<int>(summary.best_edge_distance) << ','
+                    << summary.winning_count << '\n';
+            } else {
+                out << ",,,0\n";
+            }
+        }
+        return true;
+    }
+
     std::uint64_t states() const {
         return memo_.size();
     }
@@ -301,6 +324,13 @@ private:
         GapList state;
         state.push_back(Gap{static_cast<std::uint8_t>(left_len), WALL, OPP});
         state.push_back(Gap{static_cast<std::uint8_t>(right_len), OPP, WALL});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList single_gap_state(int m, std::uint8_t left, std::uint8_t right) {
+        GapList state;
+        state.push_back(Gap{static_cast<std::uint8_t>(m), left, right});
         normalize_in_place(state);
         return state;
     }
@@ -476,9 +506,11 @@ int main(int argc, char** argv) {
     int to = 37;
     int initial_grid_sum = -1;
     int initial_response_sum = -1;
+    int single_gap_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
     std::string initial_grid_csv;
     std::string initial_response_csv;
+    std::string single_gap_csv;
     for (int i = 1; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--to" && i + 1 < argc) {
@@ -493,10 +525,28 @@ int main(int argc, char** argv) {
             initial_response_sum = std::atoi(argv[++i]);
         } else if (arg == "--initial-response-csv" && i + 1 < argc) {
             initial_response_csv = argv[++i];
+        } else if (arg == "--single-gap-max" && i + 1 < argc) {
+            single_gap_max = std::atoi(argv[++i]);
+        } else if (arg == "--single-gap-csv" && i + 1 < argc) {
+            single_gap_csv = argv[++i];
         }
     }
 
     GapSolver solver;
+    if (single_gap_max >= 0) {
+        if (single_gap_csv.empty()) {
+            std::cerr << "--single-gap-csv is required with --single-gap-max\n";
+            return 2;
+        }
+        if (!solver.write_single_gap_csv(single_gap_max, single_gap_csv)) {
+            std::cerr << "failed to write " << single_gap_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << single_gap_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (initial_response_sum >= 0) {
         if (initial_response_csv.empty()) {
             std::cerr << "--initial-response-csv is required with --initial-response-sum\n";

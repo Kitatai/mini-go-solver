@@ -99,7 +99,8 @@ private:
                 continue;
             }
             Gap gap = state[gap_index];
-            for (int pos = 0; pos < gap.m; ++pos) {
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
                 if ((pos == 0 && gap.left == WALL) || (pos == gap.m - 1 && gap.right == WALL)) {
                     continue;
                 }

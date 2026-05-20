@@ -160,6 +160,22 @@ inside the other original gap that moves to a smaller losing state.
 
 If this lemma can be proved with an explicit position rule, then the proof of `P(s)` becomes much simpler.
 
+Further checks show that the response position cannot depend only on the length and boundary type of the untouched gap. For lengths at least `7`, the intersection of all winning response-position sets in the same untouched gap type is often empty. Thus, the response must also depend on the opponent's move position and on the split it creates in the other gap.
+
+The current narrowed target is therefore:
+
+```text
+For each legal move position p in one original gap of P(s),
+construct a response position q in the other original gap.
+The formula for q may depend on:
+  - which original gap was played;
+  - p;
+  - the two lengths created by that move;
+  - the boundary type of the untouched gap.
+```
+
+This is still much narrower than the original search problem, because the response gap is fixed.
+
 ## More Promising Proof Form
 
 The computations suggest proving a local response lemma rather than enumerating all global shapes.

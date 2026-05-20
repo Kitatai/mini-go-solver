@@ -52,6 +52,13 @@ struct Move {
     std::uint8_t pos = 0;
 };
 
+struct ResponseSummary {
+    Move first{};
+    Move best{};
+    std::uint32_t winning_count = 0;
+    std::uint8_t best_edge_distance = 0;
+};
+
 bool operator<(const Gap& a, const Gap& b) {
     if (a.m != b.m) return a.m < b.m;
     if (a.left != b.left) return a.left < b.left;
@@ -234,7 +241,9 @@ public:
 
         out << "left_len,right_len,total_empty,n,first,"
             << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
-            << "response_gap_m,response_gap_left,response_gap_right,response_pos\n";
+            << "response_gap_m,response_gap_left,response_gap_right,response_pos,"
+            << "best_response_gap_m,best_response_gap_left,best_response_gap_right,best_response_pos,"
+            << "best_response_edge_distance,winning_response_count\n";
         for (int left_len = 1; left_len <= max_sum; ++left_len) {
             for (int right_len = 1; right_len + left_len <= max_sum; ++right_len) {
                 GapList state = initial_gap_state(left_len, right_len);
@@ -248,8 +257,8 @@ public:
                         if (!is_legal_move(gap, pos)) continue;
 
                         GapList child = child_after_move(state, gap_index, pos);
-                        Move response;
-                        bool has_response = first_winning_move(child, response);
+                        ResponseSummary response;
+                        bool has_response = summarize_winning_moves(child, response);
                         if (!has_response) {
                             std::cerr << "missing response for left_len=" << left_len
                                       << " right_len=" << right_len << '\n';
@@ -266,10 +275,16 @@ public:
                             << static_cast<int>(gap.left) << ','
                             << static_cast<int>(gap.right) << ','
                             << pos << ','
-                            << static_cast<int>(response.gap_m) << ','
-                            << static_cast<int>(response.gap_left) << ','
-                            << static_cast<int>(response.gap_right) << ','
-                            << static_cast<int>(response.pos) << '\n';
+                            << static_cast<int>(response.first.gap_m) << ','
+                            << static_cast<int>(response.first.gap_left) << ','
+                            << static_cast<int>(response.first.gap_right) << ','
+                            << static_cast<int>(response.first.pos) << ','
+                            << static_cast<int>(response.best.gap_m) << ','
+                            << static_cast<int>(response.best.gap_left) << ','
+                            << static_cast<int>(response.best.gap_right) << ','
+                            << static_cast<int>(response.best.pos) << ','
+                            << static_cast<int>(response.best_edge_distance) << ','
+                            << response.winning_count << '\n';
                     }
                 }
             }
@@ -318,8 +333,15 @@ private:
         return next;
     }
 
-    bool first_winning_move(const GapList& state, Move& move) {
+    std::uint8_t edge_distance(Gap gap, int pos) const {
+        int right = static_cast<int>(gap.m) - 1 - pos;
+        int dist = std::min(pos, right);
+        return static_cast<std::uint8_t>(dist);
+    }
+
+    bool summarize_winning_moves(const GapList& state, ResponseSummary& summary) {
         if (!win_state(state)) return false;
+        bool found = false;
         for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
             if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
             Gap gap = state[gap_index];
@@ -328,17 +350,27 @@ private:
                 if (!is_legal_move(gap, pos)) continue;
                 GapList child = child_after_move(state, gap_index, pos);
                 if (!win_state(child)) {
-                    move = Move{
+                    Move move{
                         gap.m,
                         gap.left,
                         gap.right,
                         static_cast<std::uint8_t>(pos),
                     };
-                    return true;
+                    std::uint8_t distance = edge_distance(gap, pos);
+                    if (!found) {
+                        summary.first = move;
+                        summary.best = move;
+                        summary.best_edge_distance = distance;
+                        found = true;
+                    } else if (distance < summary.best_edge_distance) {
+                        summary.best = move;
+                        summary.best_edge_distance = distance;
+                    }
+                    ++summary.winning_count;
                 }
             }
         }
-        return false;
+        return found;
     }
 
     bool win_state(const GapList& state) {

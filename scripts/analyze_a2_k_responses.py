@@ -7,7 +7,14 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from analyze_a2_helper_responses import has_family_h0, has_family_h1
-from gap_state import Gap, format_state, parse_state, remove_known_t_components, remove_once
+from gap_state import (
+    Gap,
+    format_state,
+    parse_state,
+    remove_current_inert_components,
+    remove_known_t_components,
+    remove_once,
+)
 
 
 def has_family_k0(gaps: list[Gap]) -> tuple[int, int] | None:
@@ -29,7 +36,7 @@ def has_family_k1(gaps: list[Gap]) -> tuple[int, int] | None:
 
 def classify_response_child(text: str) -> str:
     gaps = parse_state(text)
-    _, remainder = remove_known_t_components(gaps)
+    t_labels, remainder = remove_known_t_components(gaps)
 
     h0 = has_family_h0(remainder)
     if h0 is not None:
@@ -47,6 +54,18 @@ def classify_response_child(text: str) -> str:
 
     if not remainder:
         return "T-only"
+
+    inert_labels, active_remainder = remove_current_inert_components(remainder)
+    if inert_labels:
+        inert_summary = ",".join(
+            f"{label}x{count}" if count > 1 else label
+            for label, count in sorted(Counter(inert_labels).items())
+        )
+        prefix = "T+" if t_labels else ""
+        if not active_remainder:
+            return f"{prefix}I-only[{inert_summary}]"
+        return f"rem={format_state(active_remainder)}+{prefix}I[{inert_summary}]"
+
     return "rem=" + format_state(remainder)
 
 

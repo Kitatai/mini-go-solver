@@ -67,6 +67,28 @@ def remove_known_t_components(gaps: list[Gap]) -> tuple[list[str], list[Gap]]:
     return labels, gaps
 
 
+def has_current_legal_move(gap: Gap) -> bool:
+    m, left, right = gap
+    for pos in range(m):
+        if pos == 0 and left in (0, 2):
+            continue
+        if pos == m - 1 and right in (0, 2):
+            continue
+        return True
+    return False
+
+
+def remove_current_inert_components(gaps: list[Gap]) -> tuple[list[str], list[Gap]]:
+    labels: list[str] = []
+    remainder: list[Gap] = []
+    for gap in gaps:
+        if has_current_legal_move(gap):
+            remainder.append(gap)
+        else:
+            labels.append(f"I({gap[0]},{gap[1]},{gap[2]})")
+    return labels, remainder
+
+
 def remove_r_component(gaps: list[Gap]) -> list[Gap] | None:
     for n in range(1, 128):
         rest = list(gaps)

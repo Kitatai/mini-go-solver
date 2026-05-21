@@ -597,6 +597,31 @@ public:
         return true;
     }
 
+    bool write_a2_k_response_csv(int max_len, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,s,t,total_empty,state,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "child_gap_count,child_gaps,"
+            << "best_response_gap_m,best_response_gap_left,best_response_gap_right,best_response_pos,"
+            << "best_response_edge_distance,winning_response_count,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int s = 1; s <= max_len; ++s) {
+            for (int t = s; t <= max_len; ++t) {
+                GapList k0 = a2_k0(s, t);
+                if (!win_state(k0)) {
+                    if (!write_two_parameter_responses(out, "K0_WO2_MO_MO", s, t, k0)) return false;
+                }
+                GapList k1 = a2_k1(s, t);
+                if (!win_state(k1)) {
+                    if (!write_two_parameter_responses(out, "K1_OO1_WO2_MO_MO", s, t, k1)) return false;
+                }
+            }
+        }
+        return true;
+    }
+
     bool write_auxiliary_response_csv(int max_r, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -851,6 +876,61 @@ private:
 
                 out << family << ','
                     << r << ','
+                    << total_empty(state) << ','
+                    << quote_gap_list(state) << ','
+                    << static_cast<int>(gap.m) << ','
+                    << static_cast<int>(gap.left) << ','
+                    << static_cast<int>(gap.right) << ','
+                    << pos << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << ','
+                    << static_cast<int>(response.summary.best.gap_m) << ','
+                    << static_cast<int>(response.summary.best.gap_left) << ','
+                    << static_cast<int>(response.summary.best.gap_right) << ','
+                    << static_cast<int>(response.summary.best.pos) << ','
+                    << static_cast<int>(response.summary.best_edge_distance) << ','
+                    << response.summary.winning_count << ','
+                    << response.best_child.size << ','
+                    << quote_gap_list(response.best_child) << '\n';
+            }
+        }
+        return true;
+    }
+
+    bool write_two_parameter_responses(
+        std::ofstream& out,
+        const char* family,
+        int s,
+        int t,
+        GapList state) {
+        if (win_state(state)) {
+            std::cerr << "two-parameter state is not losing: family=" << family
+                      << " s=" << s << " t=" << t << '\n';
+            return false;
+        }
+
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+
+                GapList child = child_after_move(state, gap_index, pos);
+                ResponseDetail response;
+                bool has_response = summarize_winning_moves(child, response);
+                if (!has_response) {
+                    std::cerr << "missing two-parameter response: family=" << family
+                              << " s=" << s
+                              << " t=" << t
+                              << " gap_m=" << static_cast<int>(gap.m)
+                              << " pos=" << pos << '\n';
+                    return false;
+                }
+
+                out << family << ','
+                    << s << ','
+                    << t << ','
                     << total_empty(state) << ','
                     << quote_gap_list(state) << ','
                     << static_cast<int>(gap.m) << ','
@@ -1383,6 +1463,7 @@ int main(int argc, char** argv) {
     int a2_helper_grid_max = -1;
     int a2_helper_response_max = -1;
     int a2_k_grid_max = -1;
+    int a2_k_response_max = -1;
     int six_family_response_max = -1;
     int six_family_all_response_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
@@ -1400,6 +1481,7 @@ int main(int argc, char** argv) {
     std::string a2_helper_grid_csv;
     std::string a2_helper_response_csv;
     std::string a2_k_grid_csv;
+    std::string a2_k_response_csv;
     std::string six_family_response_csv;
     std::string six_family_all_response_csv;
     for (int i = 1; i < argc; ++i) {
@@ -1466,6 +1548,10 @@ int main(int argc, char** argv) {
             a2_k_grid_max = std::atoi(argv[++i]);
         } else if (arg == "--a2-k-grid-csv" && i + 1 < argc) {
             a2_k_grid_csv = argv[++i];
+        } else if (arg == "--a2-k-response-max" && i + 1 < argc) {
+            a2_k_response_max = std::atoi(argv[++i]);
+        } else if (arg == "--a2-k-response-csv" && i + 1 < argc) {
+            a2_k_response_csv = argv[++i];
         } else if (arg == "--six-family-response-max" && i + 1 < argc) {
             six_family_response_max = std::atoi(argv[++i]);
         } else if (arg == "--six-family-response-csv" && i + 1 < argc) {
@@ -1588,6 +1674,20 @@ int main(int argc, char** argv) {
             return 2;
         }
         std::cout << "wrote " << a2_k_grid_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (a2_k_response_max >= 0) {
+        if (a2_k_response_csv.empty()) {
+            std::cerr << "--a2-k-response-csv is required with --a2-k-response-max\n";
+            return 2;
+        }
+        if (!solver.write_a2_k_response_csv(a2_k_response_max, a2_k_response_csv)) {
+            std::cerr << "failed to write " << a2_k_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << a2_k_response_csv << '\n';
         std::cout << "states=" << solver.states() << '\n';
         return 0;
     }

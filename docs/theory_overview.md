@@ -26,6 +26,9 @@
 - `nine_family_response_tables.md`: 9 族定理で使う応手表。
 - `center_adjacent_proof.md`: 奇数盤面の中央隣初手が負けであることの証明。
 - `a_family_partial_proof.md`: `A(a,b)=WO(a)+WO(b)` のうち、均衡型と近均衡型が負けであることの証明。
+- `a_family_obstruction.md`: `A(a,b)` の差が大きい場合に現れる 3-gap 型と、未解決の補助族の整理。
+- `a_family_response_search.md`: `A(a,b)` の全勝ち応手から補助族を探すための実験メモ。
+- `proof_verification.md`: 応手式を機械検査するための方針。
 - `proof_attempt.md`: 全体分類を証明するための未解決課題の整理。
 - `implementation.md`: ソルバー実装の概要。
 
@@ -106,3 +109,6 @@ A(i, N - i - 1) = WO(i) + WO(N - i - 1)
 
 このうち `A(n,n)` と `A(n,n+1)` は、9 族負け定理だけで証明できる。
 残る本質的な難所は、`|a-b| >= 3` の `A(a,b)` である。
+この場合、1 手後に `WM(a)+WO(p)+MO(r)` という 3-gap 型が現れる。
+均衡型・近均衡型ではこの局面への応手が 9 族へ戻るが、差が大きい場合は
+`WM(p)+OO(p+delta)` のような新しい補助族が残る。

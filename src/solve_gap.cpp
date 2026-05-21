@@ -298,6 +298,43 @@ public:
         return true;
     }
 
+    bool write_initial_all_response_csv(int max_sum, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "left_len,right_len,total_empty,n,first,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "response_gap_m,response_gap_left,response_gap_right,response_pos,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int left_len = 1; left_len <= max_sum; ++left_len) {
+            for (int right_len = 1; right_len + left_len <= max_sum; ++right_len) {
+                GapList state = initial_gap_state(left_len, right_len);
+                if (win_state(state)) continue;
+
+                for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+                    if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+                    Gap gap = state[gap_index];
+                    int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+                    for (int pos = 0; pos < pos_limit; ++pos) {
+                        if (!is_legal_move(gap, pos)) continue;
+
+                        GapList child = child_after_move(state, gap_index, pos);
+                        if (!write_all_initial_winning_responses(
+                                out,
+                                left_len,
+                                right_len,
+                                gap,
+                                pos,
+                                child)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     bool write_single_gap_csv(int max_m, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -363,6 +400,29 @@ public:
                     << me_opp_len << ','
                     << wall_opp_len + me_opp_len << ','
                     << (current_wins ? 'W' : 'L') << '\n';
+            }
+        }
+        return true;
+    }
+
+    bool write_obstruction_grid_csv(int max_p, int max_delta, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,delta,p,total_empty,current_player_result,state\n";
+        for (int delta = -max_delta; delta <= max_delta; ++delta) {
+            for (int p = 1; p <= max_p; ++p) {
+                int oo_len = p + delta;
+                if (oo_len <= 0) continue;
+                GapList d_state = two_gap_state(p, WALL, ME, oo_len, OPP, OPP);
+                write_family_grid_row(out, "D_WM_OO", delta, p, d_state);
+            }
+        }
+
+        for (int delta = 0; delta <= max_delta; ++delta) {
+            for (int p = 1; p <= max_p; ++p) {
+                GapList b_state = two_gap_state(p + delta, WALL, OPP, p, ME, OPP);
+                write_family_grid_row(out, "B_WO_MO", delta, p, b_state);
             }
         }
         return true;
@@ -647,6 +707,21 @@ private:
             << quote_gap_list(state) << '\n';
     }
 
+    void write_family_grid_row(
+        std::ofstream& out,
+        const char* family,
+        int delta,
+        int p,
+        GapList state) {
+        bool current_wins = win_state(state);
+        out << family << ','
+            << delta << ','
+            << p << ','
+            << total_empty(state) << ','
+            << (current_wins ? 'W' : 'L') << ','
+            << quote_gap_list(state) << '\n';
+    }
+
     bool write_auxiliary_responses(std::ofstream& out, const char* family, int r, GapList state) {
         if (win_state(state)) {
             std::cerr << "auxiliary state is not losing: family=" << family
@@ -846,6 +921,52 @@ private:
         }
         if (!found) {
             std::cerr << "missing all-response row for total=" << total
+                      << " gap_m=" << static_cast<int>(move_gap.m)
+                      << " pos=" << move_pos << '\n';
+        }
+        return found;
+    }
+
+    bool write_all_initial_winning_responses(
+        std::ofstream& out,
+        int left_len,
+        int right_len,
+        Gap move_gap,
+        int move_pos,
+        const GapList& state) {
+        if (!win_state(state)) return false;
+        bool found = false;
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, gap_index, pos);
+                if (win_state(child)) continue;
+                found = true;
+                int total_empty = left_len + right_len;
+                out << left_len << ','
+                    << right_len << ','
+                    << total_empty << ','
+                    << total_empty + 1 << ','
+                    << left_len << ','
+                    << static_cast<int>(move_gap.m) << ','
+                    << static_cast<int>(move_gap.left) << ','
+                    << static_cast<int>(move_gap.right) << ','
+                    << move_pos << ','
+                    << static_cast<int>(gap.m) << ','
+                    << static_cast<int>(gap.left) << ','
+                    << static_cast<int>(gap.right) << ','
+                    << pos << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << '\n';
+            }
+        }
+        if (!found) {
+            std::cerr << "missing initial all-response row for left_len="
+                      << left_len
+                      << " right_len=" << right_len
                       << " gap_m=" << static_cast<int>(move_gap.m)
                       << " pos=" << move_pos << '\n';
         }
@@ -1147,9 +1268,12 @@ int main(int argc, char** argv) {
     int to = 37;
     int initial_grid_sum = -1;
     int initial_response_sum = -1;
+    int initial_all_response_sum = -1;
     int single_gap_max = -1;
     int single_gap_children_max = -1;
     int boundary_grid_sum = -1;
+    int obstruction_grid_max = -1;
+    int obstruction_grid_delta = 12;
     int balanced_boundary_response_sum = -1;
     int balanced_boundary_all_response_sum = -1;
     int auxiliary_family_max = -1;
@@ -1159,9 +1283,11 @@ int main(int argc, char** argv) {
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
     std::string initial_grid_csv;
     std::string initial_response_csv;
+    std::string initial_all_response_csv;
     std::string single_gap_csv;
     std::string single_gap_children_csv;
     std::string boundary_grid_csv;
+    std::string obstruction_grid_csv;
     std::string balanced_boundary_response_csv;
     std::string balanced_boundary_all_response_csv;
     std::string auxiliary_family_csv;
@@ -1182,6 +1308,10 @@ int main(int argc, char** argv) {
             initial_response_sum = std::atoi(argv[++i]);
         } else if (arg == "--initial-response-csv" && i + 1 < argc) {
             initial_response_csv = argv[++i];
+        } else if (arg == "--initial-all-response-sum" && i + 1 < argc) {
+            initial_all_response_sum = std::atoi(argv[++i]);
+        } else if (arg == "--initial-all-response-csv" && i + 1 < argc) {
+            initial_all_response_csv = argv[++i];
         } else if (arg == "--single-gap-max" && i + 1 < argc) {
             single_gap_max = std::atoi(argv[++i]);
         } else if (arg == "--single-gap-csv" && i + 1 < argc) {
@@ -1194,6 +1324,12 @@ int main(int argc, char** argv) {
             boundary_grid_sum = std::atoi(argv[++i]);
         } else if (arg == "--boundary-grid-csv" && i + 1 < argc) {
             boundary_grid_csv = argv[++i];
+        } else if (arg == "--obstruction-grid-max" && i + 1 < argc) {
+            obstruction_grid_max = std::atoi(argv[++i]);
+        } else if (arg == "--obstruction-grid-delta" && i + 1 < argc) {
+            obstruction_grid_delta = std::atoi(argv[++i]);
+        } else if (arg == "--obstruction-grid-csv" && i + 1 < argc) {
+            obstruction_grid_csv = argv[++i];
         } else if (arg == "--balanced-boundary-response-sum" && i + 1 < argc) {
             balanced_boundary_response_sum = std::atoi(argv[++i]);
         } else if (arg == "--balanced-boundary-response-csv" && i + 1 < argc) {
@@ -1324,6 +1460,23 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    if (obstruction_grid_max >= 0) {
+        if (obstruction_grid_csv.empty()) {
+            std::cerr << "--obstruction-grid-csv is required with --obstruction-grid-max\n";
+            return 2;
+        }
+        if (!solver.write_obstruction_grid_csv(
+                obstruction_grid_max,
+                obstruction_grid_delta,
+                obstruction_grid_csv)) {
+            std::cerr << "failed to write " << obstruction_grid_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << obstruction_grid_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
     if (single_gap_children_max >= 0) {
         if (single_gap_children_csv.empty()) {
             std::cerr << "--single-gap-children-csv is required with --single-gap-children-max\n";
@@ -1362,6 +1515,20 @@ int main(int argc, char** argv) {
             return 2;
         }
         std::cout << "wrote " << initial_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (initial_all_response_sum >= 0) {
+        if (initial_all_response_csv.empty()) {
+            std::cerr << "--initial-all-response-csv is required with --initial-all-response-sum\n";
+            return 2;
+        }
+        if (!solver.write_initial_all_response_csv(initial_all_response_sum, initial_all_response_csv)) {
+            std::cerr << "failed to write " << initial_all_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << initial_all_response_csv << '\n';
         std::cout << "states=" << solver.states() << '\n';
         return 0;
     }

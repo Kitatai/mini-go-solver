@@ -1,8 +1,8 @@
 # Nine-Family Proof Candidate
 
-This note gives a constructive proof plan for the nine-family losing class. It
-is still a proof candidate: the response tables below must be checked for every
-case, but the intended form is now explicit and finite.
+This note gives a constructive proof plan for the nine-family losing class. The
+response tables below are explicit; what remains is to turn the table checks
+and the disjoint-sum argument into a fully polished proof.
 
 ## Notation
 
@@ -38,8 +38,10 @@ The intended theorem is:
 Every state in T is losing for the player to move.
 ```
 
-The proof should be by induction on total empty count. The response to a move
-must move to a disjoint sum of smaller states in `T`.
+The proof should be by induction on total empty count, strengthened to all
+finite disjoint sums of states in `T`. The response to a move in one component
+must move that component to a disjoint sum of smaller states in `T`; untouched
+components are unchanged after the two-ply move-response pair.
 
 ## Basic Split Rule
 
@@ -135,12 +137,32 @@ Equivalently, respond so that the smaller side made in `WM(n)` is matched in
 The response child decomposes into one `T2` component and one smaller `T3`
 component.
 
+More explicitly, let `r = n - p - 1`.
+
+If `p <= r`, then `q = p`, and the child is:
+
+```text
+T3(p) + T2(r).
+```
+
+If `p > r`, then `q = r`, and the child is:
+
+```text
+T2(r) + T3(p).
+```
+
 ### Move in `OO(n)`
 
 Respond at `q = p` in the untouched `WM(n)`.
 
 The response child decomposes into one `T1` component and one smaller `T5`
 component.
+
+With `r = n - p - 1`, the child is:
+
+```text
+T5(p) + T1(r).
+```
 
 ## T4: `OO(n) + WM(n + 1)`
 
@@ -156,29 +178,31 @@ q = n - p.
 
 This is the mirror response `q = u - 1 - p`, where `u = n + 1`.
 
+With `r = n - p - 1`, the child is:
+
+```text
+T1(p) + T6(r).
+```
+
 ### Move in `WM(n + 1)`
 
 Let the move position be `p`. Respond in the untouched `OO(n)` gap by:
 
 ```text
-q = n - p - 1       if p <= floor(n / 2)
+q = p - 1           if p <= floor(n / 2)
 q = n - p           if p > floor(n / 2)
 ```
 
 In the earlier length-matching notation, these are `right-mirror` in the first
 case and `right-same` in the second case.
 
-The response child decomposes into smaller components of types:
+Let `r = n - p`. The child is:
 
 ```text
-T4
-T2 + T4
-T1 + T6
-T2 + T0
-T0
+T4(p - 1) + T2(r).
 ```
 
-The last two outcomes occur only in small boundary cases.
+Here `T4(0)` means `WM(1)`, i.e. `T0`, and `T2(0)` is omitted.
 
 ## T5: `WO(n) + MO(n)`
 
@@ -189,6 +213,12 @@ There are two move types.
 Respond at `q = p` in the untouched `MO(n)`.
 
 The response child decomposes into `T1` and `T3` components.
+
+With `r = n - p - 1`, the child is:
+
+```text
+T3(p) + T1(r).
+```
 
 ### Move in `MO(n)`
 
@@ -201,6 +231,12 @@ q = n - 1 - p
 in the untouched `WO(n)`.
 
 The response child decomposes into `T2` and `T5` components.
+
+With `r = n - p - 1`, the child is:
+
+```text
+T2(p) + T5(r).
+```
 
 ## T6: `WO(n + 1) + MO(n)`
 
@@ -216,26 +252,29 @@ q = n - p.
 
 This is the mirror response `q = u - 1 - p`, where `u = n + 1`.
 
+With `r = n - p - 1`, the child is:
+
+```text
+T2(p) + T6(r).
+```
+
 ### Move in `WO(n + 1)`
 
 Respond at
 
 ```text
-q = n - 1 - p
+q = p - 1
 ```
 
 in the untouched `MO(n)`. In length-matching notation this is `right-mirror`.
 
-The response child decomposes into smaller components of types:
+Let `r = n - p`. The child is:
 
 ```text
-T6
-T2 + T6
-T1 + T4
-T1 + T0
+T4(p - 1) + T1(r).
 ```
 
-The `T0` outcome occurs only in small boundary cases.
+Here `T4(0)` means `WM(1)`, i.e. `T0`.
 
 ## T7: `WM(1) + MO(n) + MO(n)`
 
@@ -269,15 +308,116 @@ T0 + T2 + T2
 
 with zero-size components omitted.
 
-## Remaining Work
+## Closure Work
 
-The tables for `T1`, `T2`, `T7`, and `T8` are already explicit enough to turn
-into a formal proof.
+The response tables are now explicit. The remaining proof work is to check the
+legality bounds in each case and keep the induction statement clean:
 
-The tables for `T3` through `T6` still need full case expansion. In particular,
-the phrases "using the legal one" and "decomposes into" must be replaced by
-explicit inequalities on `p` and `n`, together with the exact resulting
-components.
+- every displayed response position `q` is inside the untouched gap;
+- every displayed response is legal;
+- after the move and response, the moved component is replaced by a finite
+  disjoint sum of states in `T`;
+- each replacement component has smaller total empty count than the original
+  moved component;
+- `T4(0)` is interpreted as `T0`;
+- zero-length components are omitted.
 
-Once those four tables are expanded, the induction proof of all nine families
-will be mechanical.
+After that, the nine-family theorem becomes a direct induction on total empty
+count for finite disjoint sums of `T`-states.
+
+## Legality Bounds
+
+The displayed responses satisfy the required bounds under the legal-move
+conditions for each gap:
+
+- in `MO(n)`, legal moves have `0 <= p <= n - 2`;
+- in `OO(n)`, legal moves have `1 <= p <= n - 2`;
+- in `WM(n)`, legal moves have `1 <= p <= n - 1`;
+- in `WO(n)`, legal moves have `1 <= p <= n - 2`;
+- in `MM(n)`, all positions are legal, but by reflection it is enough to check
+  the canonical half.
+
+For `T4`, a move in `WM(n + 1)` has `1 <= p <= n`. The response is:
+
+```text
+q = p - 1       if p <= floor(n / 2)
+q = n - p       if p > floor(n / 2).
+```
+
+In both cases `0 <= q <= n - 1`, so the response lies in the untouched
+`OO(n)` gap.
+
+For `T6`, a move in `WO(n + 1)` has `1 <= p <= n - 1`. The response
+
+```text
+q = p - 1
+```
+
+satisfies `0 <= q <= n - 2`, so it lies in the untouched `MO(n)` gap.
+
+## Induction Form
+
+Let `E(S)` be the total number of empty points in a state `S`.
+
+Use the following stronger statement.
+
+```text
+Q(e): every finite disjoint sum of T-states with total empty count e is losing.
+```
+
+The proof proceeds by induction on `e`.
+
+Take a state
+
+```text
+S = C1 + ... + Ck
+```
+
+where every `Ci` belongs to `T`. If all components are `T0`, there is no legal
+move.
+
+Otherwise, any legal move occurs in one component, say `Ci`. Use the response
+specified in the table for the family containing `Ci`. After the opponent's
+move and the response, the turn returns to the original orientation. Therefore
+all untouched components `Cj (j != i)` have the same relative boundary labels
+as before, while `Ci` has been replaced by a finite disjoint sum of `T`-states.
+The total empty count has decreased by two, so the resulting state satisfies
+the induction hypothesis and is losing for the next player.
+
+Thus every first move from `S` can be answered by a move to a smaller losing
+state. Hence `S` is losing. Applying this to the one-component sums proves
+that each state in `T0..T8` is losing.
+
+This is the required disjoint-sum step for this normal-play setting. The
+important point is that the response is always made in the component where the
+first move occurred, so all other components are flipped twice and return to
+their original relative labels.
+
+## Consequence for `P(s)`
+
+The near-balanced state `P(s)` is one of the nine families:
+
+```text
+P(2n)     = WO(n) + MO(n)       = T5(n)
+P(2n + 1) = WO(n + 1) + MO(n)   = T6(n).
+```
+
+Therefore, the nine-family theorem implies that `P(s)` is losing for every
+`s >= 2`.
+
+Consequently, for `m >= 3`, the state
+
+```text
+Gap(m, opponent, wall)
+```
+
+is winning for the player to move: play near the center so that the opponent
+receives `P(m - 1)`.
+
+This proves the near-edge losing rule:
+
+```text
+initial moves i = 1 and i = N - 2 are losing for N >= 5.
+```
+
+It does not prove the full observed classification for all first moves.

@@ -98,6 +98,26 @@ inline bool remove_pair(GapList& list, Gap a, Gap b) {
     return true;
 }
 
+inline bool has_current_legal_move(Gap gap) {
+    for (int pos = 0; pos < gap.m; ++pos) {
+        if (pos == 0 && (gap.left == WALL || gap.left == OPP)) continue;
+        if (pos == gap.m - 1 && (gap.right == WALL || gap.right == OPP)) continue;
+        return true;
+    }
+    return false;
+}
+
+inline bool remove_inert_component(GapList& list) {
+    for (int i = 0; i < list.size; ++i) {
+        if (!has_current_legal_move(list.gaps[i])) {
+            for (int j = i + 1; j < list.size; ++j) list.gaps[j - 1] = list.gaps[j];
+            --list.size;
+            return true;
+        }
+    }
+    return false;
+}
+
 inline bool remove_t_component(GapList& list) {
     if (remove_once(list, Gap{1, WALL, ME})) return true; // T0
 
@@ -152,6 +172,7 @@ inline bool remove_r_component(GapList& list) {
 
 inline bool is_proven_loss_sum(GapList list) {
     while (list.size > 0) {
+        if (remove_inert_component(list)) continue;
         if (remove_t_component(list)) continue;
         if (remove_a_component(list)) continue;
         if (remove_r_component(list)) continue;

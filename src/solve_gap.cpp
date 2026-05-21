@@ -548,6 +548,41 @@ public:
         return true;
     }
 
+    bool write_a2_helper_grid_csv(int max_k, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,k,total_empty,current_player_result,state\n";
+        for (int k = 1; k <= max_k; ++k) {
+            write_auxiliary_row(out, "H0_WM1_WO2_MO", k, a2_helper_h0(k));
+            write_auxiliary_row(out, "H1_WM1_OO1_WO2_MO", k, a2_helper_h1(k));
+        }
+        return true;
+    }
+
+    bool write_a2_helper_response_csv(int max_k, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,k,total_empty,state,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "child_gap_count,child_gaps,"
+            << "best_response_gap_m,best_response_gap_left,best_response_gap_right,best_response_pos,"
+            << "best_response_edge_distance,winning_response_count,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int k = 1; k <= max_k; ++k) {
+            GapList h0 = a2_helper_h0(k);
+            if (!win_state(h0)) {
+                if (!write_auxiliary_responses(out, "H0_WM1_WO2_MO", k, h0)) return false;
+            }
+            GapList h1 = a2_helper_h1(k);
+            if (!win_state(h1)) {
+                if (!write_auxiliary_responses(out, "H1_WM1_OO1_WO2_MO", k, h1)) return false;
+            }
+        }
+        return true;
+    }
+
     bool write_auxiliary_response_csv(int max_r, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -653,6 +688,25 @@ private:
         state.push_back(Gap{3, ME, OPP});
         state.push_back(Gap{3, ME, OPP});
         state.push_back(Gap{3, OPP, OPP});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList a2_helper_h0(int k) {
+        GapList state;
+        state.push_back(Gap{1, WALL, ME});
+        state.push_back(Gap{2, WALL, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(k), ME, OPP});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList a2_helper_h1(int k) {
+        GapList state;
+        state.push_back(Gap{1, WALL, ME});
+        state.push_back(Gap{1, OPP, OPP});
+        state.push_back(Gap{2, WALL, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(k), ME, OPP});
         normalize_in_place(state);
         return state;
     }
@@ -1278,6 +1332,8 @@ int main(int argc, char** argv) {
     int balanced_boundary_all_response_sum = -1;
     int auxiliary_family_max = -1;
     int auxiliary_response_max = -1;
+    int a2_helper_grid_max = -1;
+    int a2_helper_response_max = -1;
     int six_family_response_max = -1;
     int six_family_all_response_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
@@ -1292,6 +1348,8 @@ int main(int argc, char** argv) {
     std::string balanced_boundary_all_response_csv;
     std::string auxiliary_family_csv;
     std::string auxiliary_response_csv;
+    std::string a2_helper_grid_csv;
+    std::string a2_helper_response_csv;
     std::string six_family_response_csv;
     std::string six_family_all_response_csv;
     for (int i = 1; i < argc; ++i) {
@@ -1346,6 +1404,14 @@ int main(int argc, char** argv) {
             auxiliary_response_max = std::atoi(argv[++i]);
         } else if (arg == "--auxiliary-response-csv" && i + 1 < argc) {
             auxiliary_response_csv = argv[++i];
+        } else if (arg == "--a2-helper-grid-max" && i + 1 < argc) {
+            a2_helper_grid_max = std::atoi(argv[++i]);
+        } else if (arg == "--a2-helper-grid-csv" && i + 1 < argc) {
+            a2_helper_grid_csv = argv[++i];
+        } else if (arg == "--a2-helper-response-max" && i + 1 < argc) {
+            a2_helper_response_max = std::atoi(argv[++i]);
+        } else if (arg == "--a2-helper-response-csv" && i + 1 < argc) {
+            a2_helper_response_csv = argv[++i];
         } else if (arg == "--six-family-response-max" && i + 1 < argc) {
             six_family_response_max = std::atoi(argv[++i]);
         } else if (arg == "--six-family-response-csv" && i + 1 < argc) {
@@ -1426,6 +1492,34 @@ int main(int argc, char** argv) {
             return 2;
         }
         std::cout << "wrote " << auxiliary_family_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (a2_helper_response_max >= 0) {
+        if (a2_helper_response_csv.empty()) {
+            std::cerr << "--a2-helper-response-csv is required with --a2-helper-response-max\n";
+            return 2;
+        }
+        if (!solver.write_a2_helper_response_csv(a2_helper_response_max, a2_helper_response_csv)) {
+            std::cerr << "failed to write " << a2_helper_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << a2_helper_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (a2_helper_grid_max >= 0) {
+        if (a2_helper_grid_csv.empty()) {
+            std::cerr << "--a2-helper-grid-csv is required with --a2-helper-grid-max\n";
+            return 2;
+        }
+        if (!solver.write_a2_helper_grid_csv(a2_helper_grid_max, a2_helper_grid_csv)) {
+            std::cerr << "failed to write " << a2_helper_grid_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << a2_helper_grid_csv << '\n';
         std::cout << "states=" << solver.states() << '\n';
         return 0;
     }

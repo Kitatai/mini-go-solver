@@ -273,6 +273,37 @@ What remains open:
 3. If the full classification is true, find a separate argument for the
    remaining winning first moves.
 
+## Reformulation of the Full Classification
+
+After Black opens at position `i`, with `1 <= i <= N - 2`, White sees:
+
+```text
+A(i, N - i - 1) = WO(i) + WO(N - i - 1).
+```
+
+Therefore Black's first move is winning exactly when this two-gap state is
+losing for the player to move.
+
+The proved losing first moves correspond to winning `A`-states for White:
+
+```text
+i = 1 or N - 2:
+  A(1, N - 2) is winning for White.
+
+N = 2k + 1 and i = k - 1 or k + 1:
+  A(k - 1, k + 1) is winning for White.
+```
+
+The center first move on odd boards says:
+
+```text
+A(k, k) is losing for White.
+```
+
+Thus the remaining classification problem is to prove that `A(a, b)` is losing
+for the player to move for the remaining observed winning first moves. This is
+the dual direction to the losing-move theorems above.
+
 ## Odd Center-Adjacent Moves
 
 Let `N = 2k + 1`. If Black opens at the left neighbor of the center, position

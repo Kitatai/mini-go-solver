@@ -64,18 +64,25 @@ This rule is the only local transition rule used below.
 
 ## Coordinate Convention
 
-The tables name components in canonical orientation. If a physical gap is the
-left-right reflection of the displayed component, the coordinate is reflected
-with it.
+The tables name components in the canonical orientation of the state before
+the first move. A phrase such as "respond in the untouched `OO(n)` component"
+means "respond in the component that was `OO(n)` before the first move". After
+the first move and turn pass, that same physical component may be labelled
+`MM(n)` from the responder's perspective.
+
+If a physical gap is the left-right reflection of the displayed component, the
+coordinate is reflected with it.
 
 For example, after a turn pass, an untouched physical `MO(n)` component becomes
 `OM(n)`. Since the canonical representative is again `MO(n)`, a displayed
 response at coordinate `q` in `MO(n)` means the physical coordinate `n - 1 - q`
 in the reflected `OM(n)` gap.
 
-Thus all displayed response coordinates are canonical coordinates in the gap
-named by the table. This is why endpoint responses such as `q = 0` can be legal
-when the physical gap has been reflected before canonicalization.
+Thus all displayed response coordinates are canonical coordinates in the
+pre-move component named by the table. Before playing the actual response, one
+applies the turn flip and, if needed, the left-right reflection. This is why
+endpoint responses such as `q = 0` can be legal when the physical gap has been
+reflected before canonicalization.
 
 ## T1: `MO(n) + MO(n)`
 
@@ -293,19 +300,26 @@ Here `T4(0)` means `WM(1)`, i.e. `T0`.
 
 ## T7: `WM(1) + MO(n) + MO(n)`
 
-The component `WM(1)` has no legal move. Thus any move is in one of the two
-`MO(n)` components.
+The component `WM(1)` has no legal move. If `n = 1`, the two `MO(1)`
+components also have no legal move. Thus the state is immediately losing.
+
+Assume `n >= 2`. Any move is in one of the two `MO(n)` components.
 
 Respond in the untouched `MO(n)` as in `T1`, at the same position `p`.
 
-The response child decomposes into:
+Let `r = n - p - 1`. Since the move in `MO(n)` is legal, `0 <= p <= n - 2`,
+so `r >= 1`.
+
+After both moves, the response child is:
 
 ```text
-T0 + T1
-T0 + T1 + T2
+T0 + OO(p) + MM(p) + MO(r) + MO(r).
 ```
 
-with zero-size components omitted.
+Therefore:
+
+- if `p = 0`, the child is `T7(r)`;
+- if `p > 0`, the child is `T8(p) + T1(r)`.
 
 ## T8: `WM(1) + OO(n) + MM(n)`
 
@@ -313,15 +327,36 @@ The component `WM(1)` has no legal move. Moves occur in `OO(n)` or `MM(n)`.
 
 Use the same-position response as in `T2`.
 
-The response child decomposes into:
+### Move in `MM(n)`
+
+Respond at position `p` in the untouched `OO(n)` component.
+
+Let `r = n - p - 1`. After both moves, the response child is:
 
 ```text
-T0 + T2
-T0 + T1 + T1
-T0 + T2 + T2
+T0 + OO(p) + MM(p) + OO(r) + MM(r).
 ```
 
-with zero-size components omitted.
+Therefore:
+
+- if `p = 0` and `r = 0`, the child is `T0`;
+- if `p = 0` and `r > 0`, the child is `T8(r)`;
+- if `p > 0` and `r = 0`, the child is `T8(p)`;
+- if `p > 0` and `r > 0`, the child is `T8(p) + T2(r)`.
+
+### Move in `OO(n)`
+
+A legal move in `OO(n)` has `1 <= p <= n - 2`, so both `p` and
+`r = n - p - 1` are positive.
+
+Respond at position `p` in the untouched `MM(n)` component. After both moves,
+the response child is:
+
+```text
+T0 + MO(p) + MO(p) + MO(r) + MO(r).
+```
+
+This is `T7(p) + T1(r)`.
 
 ## Closure Work
 
@@ -424,7 +459,7 @@ P(2n + 1) = WO(n + 1) + MO(n)   = T6(n).
 Therefore, the nine-family theorem implies that `P(s)` is losing for every
 `s >= 2`.
 
-Consequently, for `m >= 3`, the state
+Consequently, for `m >= 3`, the one-gap state
 
 ```text
 Gap(m, opponent, wall)
@@ -433,7 +468,25 @@ Gap(m, opponent, wall)
 is winning for the player to move: play near the center so that the opponent
 receives `P(m - 1)`.
 
-This proves the near-edge losing rule:
+For the initial near-edge move, however, one must not discard the one-cell edge
+gap. If Black opens at `i = 1`, then White sees:
+
+```text
+WO(1) + WO(N - 2)
+```
+
+up to reflection. White plays in the large `WO(N - 2)` gap at the near-center
+position `p = ceil((N - 3) / 2)`. After the turn pass, Black receives:
+
+```text
+WM(1) + WO(ceil((N - 3) / 2)) + MO(floor((N - 3) / 2)).
+```
+
+This is `T0 + T5` when `N - 3` is even, and `T0 + T6` when `N - 3` is odd.
+The strengthened finite-sum theorem therefore makes it losing for Black.
+
+By reflection, the same argument applies to `i = N - 2`. Thus the nine-family
+theorem proves the near-edge losing rule:
 
 ```text
 initial moves i = 1 and i = N - 2 are losing for N >= 5.

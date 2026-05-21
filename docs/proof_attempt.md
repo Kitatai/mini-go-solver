@@ -38,12 +38,18 @@ P(s) is losing for all s >= 2
         =>
 Gap(m, opponent, wall) is winning for m >= 3
         =>
-initial moves i = 1 and i = N - 2 are losing.
+initial moves i = 1 and i = N - 2 are losing,
+using the extra one-cell edge gap as a T0 component.
 ```
 
 The implication from `P(s)` to `Gap(m, opponent, wall)` is by a central move:
 the current player moves in `Gap(m, opponent, wall)` so that the opponent
 receives the near-balanced state `P(m - 1)`.
+
+For the actual initial move `i = 1`, the opponent sees `WO(1) + WO(N - 2)`,
+not just the large one-gap state. The near-center response in `WO(N - 2)`
+leaves `WM(1) + P(N - 3)`, so the proof needs the strengthened finite-sum
+form of the nine-family theorem.
 
 ## Established Local Facts
 

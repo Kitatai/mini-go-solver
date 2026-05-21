@@ -742,6 +742,33 @@ public:
         return true;
     }
 
+    bool write_active_residual_grid_csv(int max_len, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,a,b,c,total_empty,current_player_result,state\n";
+        for (int a = 1; a <= max_len; ++a) {
+            for (int b = a; b <= max_len; ++b) {
+                for (int c = b; c <= max_len; ++c) {
+                    write_three_parameter_row(out, "M3_MO_MO_MO", a, b, c, residual_mo_mo_mo(a, b, c));
+                }
+            }
+        }
+        for (int a = 1; a <= max_len; ++a) {
+            for (int b = 1; b <= max_len; ++b) {
+                write_three_parameter_row(out, "M2_MO_MM", a, b, 0, residual_mo_mm(a, b));
+            }
+        }
+        for (int a = 1; a <= max_len; ++a) {
+            for (int b = 1; b <= max_len; ++b) {
+                for (int c = 1; c <= max_len; ++c) {
+                    write_three_parameter_row(out, "M3_MM_MO_OO", a, b, c, residual_mm_mo_oo(a, b, c));
+                }
+            }
+        }
+        return true;
+    }
+
     bool write_auxiliary_response_csv(int max_r, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -889,6 +916,32 @@ private:
         return state;
     }
 
+    GapList residual_mo_mo_mo(int a, int b, int c) {
+        GapList state;
+        state.push_back(Gap{static_cast<std::uint8_t>(a), ME, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(b), ME, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(c), ME, OPP});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList residual_mo_mm(int a, int b) {
+        GapList state;
+        state.push_back(Gap{static_cast<std::uint8_t>(a), ME, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(b), ME, ME});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList residual_mm_mo_oo(int a, int b, int c) {
+        GapList state;
+        state.push_back(Gap{static_cast<std::uint8_t>(a), ME, ME});
+        state.push_back(Gap{static_cast<std::uint8_t>(b), ME, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(c), OPP, OPP});
+        normalize_in_place(state);
+        return state;
+    }
+
     GapList two_gap_state(int a, std::uint8_t a_left, std::uint8_t a_right,
                           int b, std::uint8_t b_left, std::uint8_t b_right) {
         GapList state;
@@ -972,6 +1025,23 @@ private:
         out << family << ','
             << delta << ','
             << p << ','
+            << total_empty(state) << ','
+            << (current_wins ? 'W' : 'L') << ','
+            << quote_gap_list(state) << '\n';
+    }
+
+    void write_three_parameter_row(
+        std::ofstream& out,
+        const char* family,
+        int a,
+        int b,
+        int c,
+        GapList state) {
+        bool current_wins = win_state(state);
+        out << family << ','
+            << a << ','
+            << b << ','
+            << c << ','
             << total_empty(state) << ','
             << (current_wins ? 'W' : 'L') << ','
             << quote_gap_list(state) << '\n';
@@ -1748,6 +1818,7 @@ int main(int argc, char** argv) {
     int a2_k_grid_max = -1;
     int a2_k_response_max = -1;
     int a2_k_all_response_max = -1;
+    int active_residual_grid_max = -1;
     int six_family_response_max = -1;
     int six_family_all_response_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
@@ -1770,6 +1841,7 @@ int main(int argc, char** argv) {
     std::string a2_k_grid_csv;
     std::string a2_k_response_csv;
     std::string a2_k_all_response_csv;
+    std::string active_residual_grid_csv;
     std::string six_family_response_csv;
     std::string six_family_all_response_csv;
     for (int i = 1; i < argc; ++i) {
@@ -1856,6 +1928,10 @@ int main(int argc, char** argv) {
             a2_k_all_response_max = std::atoi(argv[++i]);
         } else if (arg == "--a2-k-all-response-csv" && i + 1 < argc) {
             a2_k_all_response_csv = argv[++i];
+        } else if (arg == "--active-residual-grid-max" && i + 1 < argc) {
+            active_residual_grid_max = std::atoi(argv[++i]);
+        } else if (arg == "--active-residual-grid-csv" && i + 1 < argc) {
+            active_residual_grid_csv = argv[++i];
         } else if (arg == "--six-family-response-max" && i + 1 < argc) {
             six_family_response_max = std::atoi(argv[++i]);
         } else if (arg == "--six-family-response-csv" && i + 1 < argc) {
@@ -2006,6 +2082,20 @@ int main(int argc, char** argv) {
             return 2;
         }
         std::cout << "wrote " << a2_k_all_response_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (active_residual_grid_max >= 0) {
+        if (active_residual_grid_csv.empty()) {
+            std::cerr << "--active-residual-grid-csv is required with --active-residual-grid-max\n";
+            return 2;
+        }
+        if (!solver.write_active_residual_grid_csv(active_residual_grid_max, active_residual_grid_csv)) {
+            std::cerr << "failed to write " << active_residual_grid_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << active_residual_grid_csv << '\n';
         std::cout << "states=" << solver.states() << '\n';
         return 0;
     }

@@ -336,6 +336,28 @@ MM(a) + MO(b) + OO(c)
 これらの active 残余を含む族を、`K0/K1` と同じ系に吸収できるかを調べる
 ことである。
 
+active 残余を直接調べるには次を使う。
+
+```text
+./bin/solve_gap \
+  --active-residual-grid-max 14 \
+  --active-residual-grid-csv /tmp/active_residual_grid_14.csv
+
+python3 scripts/analyze_active_residual_grid.py /tmp/active_residual_grid_14.csv
+```
+
+`max=14` の観測では、次が分かる。
+
+- `MO(a)+MM(b)` は全て勝ちであり、負け補助族としては使えない。
+- `MO(a)+MO(b)+MO(c)` の負けは、ほとんど `MO(1)+MO(n)+MO(n)` である。
+  これは不活性成分 `MO(1)` と 9 族 `T1(n)` の和として既に説明できる。
+- `MO(a)+MO(b)+MO(c)` には、観測範囲で `(2,4,5)`, `(3,4,6)` という
+  小さい例外負けが残る。
+- `MM(a)+MO(b)+OO(c)` は負けが散発的に現れ、単純な偶奇だけでは
+  まだ整理できない。
+
+したがって、次の主対象は `MM(a)+MO(b)+OO(c)` である。
+
 この観点から、`K0/K1` の縮約補題は次のように言い換えられる。
 
 ```text

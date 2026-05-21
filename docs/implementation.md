@@ -120,6 +120,13 @@ A(a,a+2)
 --inert-active-response-csv
 ```
 
+active 残余の候補を調べるには次を使う。
+
+```text
+--active-residual-grid-max
+--active-residual-grid-csv
+```
+
 ## メモ化
 
 疎メモ化では、黒石と白石が隣接しない局面だけを対象にした rank key に変換して保存する。

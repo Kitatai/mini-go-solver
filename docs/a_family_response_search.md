@@ -278,6 +278,39 @@ WM(1), WO(1), WO(2), OO(1), OO(2)
 応手側が既知の負け族側へ応手すると 2 手後に不活性成分の相対境界が戻る。
 この限定的な補題は証明規則として利用できる。
 
+不活性成分と active gap 1 個の組を調べるには次を使う。
+
+```text
+./bin/solve_gap \
+  --inert-active-grid-max 32 \
+  --inert-active-grid-csv /tmp/inert_active_grid_32.csv
+```
+
+`k=1..32` の観測では、次の補助族候補が見える。
+
+```text
+Q0(k) = WO(2) + MO(k)  または  OO(1) + MO(k)
+Q1(k) = OO(2) + MO(k)
+Q2(k) = I + OO(k) ただし I は WO(2), OO(1), OO(2) のいずれか
+```
+
+観測列は次である。
+
+```text
+Q0(k): LLWWWLWLWLWLWLWLWLWLWLWLWLWLWLWL
+Q1(k): LLLWLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+Q2(k): LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+```
+
+したがって候補としては、`Q0(1)`, `Q0(2)`, `Q0(2m)` (`m>=3`),
+`Q1(k)` (`k!=4`), `Q2(k)` が負けである。ただし、これはまだ観測であり、
+証明済みではない。特に `Q0` は勝ち負けが混在するため、単に
+`WO(2)+MO(k)` 型を見つけただけでは負けとは言えない。
+
+また、`H1(k)` の列は `Q0(k)` では説明できない。`H1` には `WO(2)` と
+`OO(1)` の両方が含まれ、単一の不活性成分を足した族とは振る舞いが変わる。
+そのため、複数の不活性成分を含む族も別に扱う必要がある。
+
 この観点から、`K0/K1` の縮約補題は次のように言い換えられる。
 
 ```text

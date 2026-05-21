@@ -402,6 +402,47 @@ public:
         return true;
     }
 
+    bool write_inert_active_grid_csv(int max_m, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "inert,active,m,total_empty,current_player_result,state\n";
+        const std::array<std::pair<const char*, Gap>, 4> inert_gaps{{
+            {"WO1", Gap{1, WALL, OPP}},
+            {"WO2", Gap{2, WALL, OPP}},
+            {"OO1", Gap{1, OPP, OPP}},
+            {"OO2", Gap{2, OPP, OPP}},
+        }};
+        const std::array<std::pair<const char*, std::pair<std::uint8_t, std::uint8_t>>, 3> active_types{{
+            {"MO", {ME, OPP}},
+            {"MM", {ME, ME}},
+            {"OO", {OPP, OPP}},
+        }};
+
+        for (const auto& [inert_name, inert_gap] : inert_gaps) {
+            for (const auto& [active_name, active_type] : active_types) {
+                for (int m = 1; m <= max_m; ++m) {
+                    GapList state;
+                    state.push_back(inert_gap);
+                    state.push_back(Gap{
+                        static_cast<std::uint8_t>(m),
+                        active_type.first,
+                        active_type.second,
+                    });
+                    normalize_in_place(state);
+                    bool current_wins = win_state(state);
+                    out << inert_name << ','
+                        << active_name << ','
+                        << m << ','
+                        << total_empty(state) << ','
+                        << (current_wins ? 'W' : 'L') << ','
+                        << quote_gap_list(state) << '\n';
+                }
+            }
+        }
+        return true;
+    }
+
     bool write_boundary_grid_csv(int max_sum, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -1575,6 +1616,7 @@ int main(int argc, char** argv) {
     int single_gap_max = -1;
     int single_gap_children_max = -1;
     int gap_type_grid_max = -1;
+    int inert_active_grid_max = -1;
     int boundary_grid_sum = -1;
     int obstruction_grid_max = -1;
     int obstruction_grid_delta = 12;
@@ -1596,6 +1638,7 @@ int main(int argc, char** argv) {
     std::string single_gap_csv;
     std::string single_gap_children_csv;
     std::string gap_type_grid_csv;
+    std::string inert_active_grid_csv;
     std::string boundary_grid_csv;
     std::string obstruction_grid_csv;
     std::string balanced_boundary_response_csv;
@@ -1639,6 +1682,10 @@ int main(int argc, char** argv) {
             gap_type_grid_max = std::atoi(argv[++i]);
         } else if (arg == "--gap-type-grid-csv" && i + 1 < argc) {
             gap_type_grid_csv = argv[++i];
+        } else if (arg == "--inert-active-grid-max" && i + 1 < argc) {
+            inert_active_grid_max = std::atoi(argv[++i]);
+        } else if (arg == "--inert-active-grid-csv" && i + 1 < argc) {
+            inert_active_grid_csv = argv[++i];
         } else if (arg == "--boundary-grid-sum" && i + 1 < argc) {
             boundary_grid_sum = std::atoi(argv[++i]);
         } else if (arg == "--boundary-grid-csv" && i + 1 < argc) {
@@ -1879,6 +1926,20 @@ int main(int argc, char** argv) {
             return 2;
         }
         std::cout << "wrote " << gap_type_grid_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (inert_active_grid_max >= 0) {
+        if (inert_active_grid_csv.empty()) {
+            std::cerr << "--inert-active-grid-csv is required with --inert-active-grid-max\n";
+            return 2;
+        }
+        if (!solver.write_inert_active_grid_csv(inert_active_grid_max, inert_active_grid_csv)) {
+            std::cerr << "failed to write " << inert_active_grid_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << inert_active_grid_csv << '\n';
         std::cout << "states=" << solver.states() << '\n';
         return 0;
     }

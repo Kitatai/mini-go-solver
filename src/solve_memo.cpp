@@ -19,6 +19,7 @@ struct Options {
     bool use_sparse = false;
     bool use_learning = false;
     bool batch_learning = false;
+    bool use_proof_rules = false;
     std::uint32_t learn_sample = 1;
     std::uint64_t sparse_initial_capacity = 0;
     std::string weights_path;
@@ -50,6 +51,10 @@ Options parse_options(int argc, char** argv) {
             opt.use_sparse = true;
         } else if (arg == "--learn") {
             opt.use_learning = true;
+        } else if (arg == "--proof-rules") {
+            opt.use_proof_rules = true;
+        } else if (arg == "--no-proof-rules") {
+            opt.use_proof_rules = false;
         } else if (arg == "--learn-batch") {
             opt.use_learning = true;
             opt.batch_learning = true;
@@ -109,6 +114,7 @@ void print_run_stats(const Solver& solver, bool use_sparse) {
               << " filled_ratio=" << filled_ratio
               << " pruned_edge_moves=" << solver.pruned_edge_moves()
               << " pruned_opponent_capture_replies=" << solver.pruned_opponent_capture_replies()
+              << " proof_rule_hits=" << solver.proof_rule_hits()
               << " learning_updates=" << solver.learning_updates() << '\n';
     solver.print_sparse_stats();
 }
@@ -123,6 +129,7 @@ int solve_one(int n, const Options& opt) {
     if (!check_memory_limit(states, opt.use_sparse, opt.force)) return 1;
 
     Solver solver(n, opt.use_symmetry, opt.use_sparse, opt.use_learning, opt.batch_learning,
+                  opt.use_proof_rules,
                   opt.learn_sample, opt.sparse_initial_capacity);
     if (!load_weights_if_present(solver, opt.weights_path)) {
         std::cerr << "failed to load weights\n";

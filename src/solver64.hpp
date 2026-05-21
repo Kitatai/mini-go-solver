@@ -3,6 +3,7 @@
 #include "bitboard.hpp"
 #include "memo_table.hpp"
 #include "pattern_evaluator.hpp"
+#include "proof_rules.hpp"
 #include "ranker.hpp"
 
 #include <algorithm>
@@ -15,9 +16,11 @@
 
 class Solver64 {
 public:
-    explicit Solver64(int n, bool use_symmetry, bool use_learning, bool batch_learning, std::uint32_t learn_sample, std::uint64_t sparse_initial_capacity)
+    explicit Solver64(int n, bool use_symmetry, bool use_learning, bool batch_learning,
+                      bool use_proof_rules, std::uint32_t learn_sample, std::uint64_t sparse_initial_capacity)
         : n_(n),
           use_symmetry_(use_symmetry),
+          use_proof_rules_(use_proof_rules),
           evaluator_(use_learning, batch_learning, learn_sample),
           mask_(minigo::board_mask<Board>(n)),
           canonical_ranker_(n),
@@ -25,6 +28,15 @@ public:
           sparse_memo_(n, initial_sparse_capacity(states_, sparse_initial_capacity), sparse_initial_capacity) {}
 
     bool first_wins_after(int first) {
+        if (first == 0 || first == n_ - 1) return false;
+        if (n_ >= 5 && (first == 1 || first == n_ - 2)) return false;
+
+        int left = first;
+        int right = n_ - first - 1;
+        int diff = left > right ? left - right : right - left;
+        if (diff <= 1) return true;
+        if (left > 0 && right > 0 && diff == 2) return false;
+
         Board black = Board{1} << first;
         bool second_wins = solve(black, 0, false);
         return !second_wins;
@@ -54,6 +66,7 @@ public:
     std::uint64_t hits() const { return hits_; }
     std::uint64_t pruned_edge_moves() const { return pruned_edge_moves_; }
     std::uint64_t pruned_opponent_capture_replies() const { return pruned_opponent_capture_replies_; }
+    std::uint64_t proof_rule_hits() const { return proof_rule_hits_; }
     std::uint64_t learning_updates() const { return evaluator_.updates(); }
 
     void print_sparse_stats() const {
@@ -153,46 +166,54 @@ private:
             if (captures != 0) {
                 win = true;
             } else {
-                OrderedMove ordered[64];
-                int ordered_count = 0;
-                int base_opp_view_score = evaluator_.evaluate_relative(opp, me, n_);
-                Board edge_moves = (Board{1} | (Board{1} << (n_ - 1))) & legal;
-                pruned_edge_moves_ += std::popcount(edge_moves);
+                minigo::proof::Result proof_result = use_proof_rules_
+                    ? minigo::proof::proven_result(me, opp, n_)
+                    : minigo::proof::Result::Unknown;
+                if (proof_result != minigo::proof::Result::Unknown) {
+                    ++proof_rule_hits_;
+                    win = proof_result == minigo::proof::Result::Win;
+                } else {
+                    OrderedMove ordered[64];
+                    int ordered_count = 0;
+                    int base_opp_view_score = evaluator_.evaluate_relative(opp, me, n_);
+                    Board edge_moves = (Board{1} | (Board{1} << (n_ - 1))) & legal;
+                    pruned_edge_moves_ += std::popcount(edge_moves);
 
-                Board moves = legal & ~edge_moves;
-                while (moves) {
-                    Board move = moves & -moves;
-                    moves &= moves - 1;
-                    int move_pos = std::countr_zero(move);
+                    Board moves = legal & ~edge_moves;
+                    while (moves) {
+                        Board move = moves & -moves;
+                        moves &= moves - 1;
+                        int move_pos = std::countr_zero(move);
 
-                    Board next_me = me | move;
-                    Board next_empty = mask_ & ~(next_me | opp);
-                    Board opp_wins = minigo::capture_candidates(next_me, next_empty, mask_);
-                    if (opp_wins != 0) {
-                        ++pruned_opponent_capture_replies_;
-                        continue;
+                        Board next_me = me | move;
+                        Board next_empty = mask_ & ~(next_me | opp);
+                        Board opp_wins = minigo::capture_candidates(next_me, next_empty, mask_);
+                        if (opp_wins != 0) {
+                            ++pruned_opponent_capture_replies_;
+                            continue;
+                        }
+
+                        Board opp_legal = minigo::non_capture_legal_moves_from_empty(opp, next_empty, mask_) | opp_wins;
+                        int child_opp_view_score =
+                            base_opp_view_score + evaluator_.delta_add_opp_stone(opp, me, n_, move_pos);
+                        int pattern_order_score = -child_opp_view_score;
+
+                        ordered[ordered_count++] = {
+                            move,
+                            std::popcount(opp_legal),
+                            pattern_order_score,
+                        };
                     }
 
-                    Board opp_legal = minigo::non_capture_legal_moves_from_empty(opp, next_empty, mask_) | opp_wins;
-                    int child_opp_view_score =
-                        base_opp_view_score + evaluator_.delta_add_opp_stone(opp, me, n_, move_pos);
-                    int pattern_order_score = -child_opp_view_score;
+                    insertion_sort_moves(ordered, ordered_count);
 
-                    ordered[ordered_count++] = {
-                        move,
-                        std::popcount(opp_legal),
-                        pattern_order_score,
-                    };
-                }
-
-                insertion_sort_moves(ordered, ordered_count);
-
-                for (int i = 0; i < ordered_count; ++i) {
-                    Board move = ordered[i].move;
-                    bool child_win = black_turn ? solve(black | move, white, false) : solve(black, white | move, true);
-                    if (!child_win) {
-                        win = true;
-                        break;
+                    for (int i = 0; i < ordered_count; ++i) {
+                        Board move = ordered[i].move;
+                        bool child_win = black_turn ? solve(black | move, white, false) : solve(black, white | move, true);
+                        if (!child_win) {
+                            win = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -224,6 +245,7 @@ private:
 
     int n_;
     bool use_symmetry_;
+    bool use_proof_rules_;
     PatternEvaluator64 evaluator_;
     Board mask_;
     mutable CanonicalRanker canonical_ranker_;
@@ -233,4 +255,5 @@ private:
     std::uint64_t hits_ = 0;
     std::uint64_t pruned_edge_moves_ = 0;
     std::uint64_t pruned_opponent_capture_replies_ = 0;
+    std::uint64_t proof_rule_hits_ = 0;
 };

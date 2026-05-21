@@ -20,6 +20,7 @@
 - `scripts/analyze_a_family_responses.py`: `A(a,b)` の全勝ち応手を既知族へ分類する。
 - `scripts/analyze_a2_helper_responses.py`: `H0/H1` の応手後状態を分類する。
 - `scripts/analyze_a2_k_grid.py`: `K0/K1` の勝敗が差 `t-s` だけで決まるかを確認する。
+- `scripts/analyze_a2_k_responses.py`: `K0/K1` の応手後状態を分類する。
 
 これらのスクリプトは `scripts/gap_state.py` の共通関数で gap 状態の正規化と
 既知族の除去を行う。解析ロジックを共通化しておくことで、同じ局面を別の

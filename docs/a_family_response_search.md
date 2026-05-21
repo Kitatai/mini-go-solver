@@ -195,6 +195,30 @@ python3 scripts/analyze_a2_k_responses.py /tmp/a2_k_responses_12.csv
 縮約補題を証明するには、単純な局所相殺だけでなく、9 族成分と小さい
 残余成分を含む同時帰納として定式化する必要がある。
 
+この残余成分は、それだけで負けとは限らない。境界型別の単一 gap 勝敗は
+次で確認できる。
+
+```text
+./bin/solve_gap \
+  --gap-type-grid-max 32 \
+  --gap-type-grid-csv /tmp/gap_type_grid_32.csv
+```
+
+観測列は次である。
+
+```text
+WM: LWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+WO: LLWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+MM: WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+MO: LWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+OO: LLWLWLWLWLWLWLWLWLWLWLWLWLWLWLWL
+```
+
+特に `MO(k)` は `k >= 2` で勝ちになり、`OO(k)` も勝ち負けが混在する。
+したがって、`K0/K1` の未分類余りを単独負け成分として片付けることは
+できない。必要なのは、余り成分が別の成分と組になったときだけ負けになる
+ような補助族である。
+
 ## `A(2,b)` が示すこと
 
 `A(2,b)` は、現在見えている規則のうち、端から 3 マス目の初手に対応する。

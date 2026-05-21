@@ -111,6 +111,15 @@ A(a,a+2)
 `Q0/Q1/Q2` のような不活性成分付きの候補族も同様に、証明が完了するまで
 探索本体の枝刈りには使わない。
 
+補助族探索用に、`solve_gap` は不活性成分と active gap 1 個の組を出力できる。
+
+```text
+--inert-active-grid-max
+--inert-active-grid-csv
+--inert-active-response-max
+--inert-active-response-csv
+```
+
 ## メモ化
 
 疎メモ化では、黒石と白石が隣接しない局面だけを対象にした rank key に変換して保存する。

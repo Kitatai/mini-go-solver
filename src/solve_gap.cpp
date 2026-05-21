@@ -443,6 +443,47 @@ public:
         return true;
     }
 
+    bool write_inert_active_response_csv(int max_m, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "inert,active,m,total_empty,state,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "response_gap_m,response_gap_left,response_gap_right,response_pos,"
+            << "response_child_gap_count,response_child_gaps\n";
+        const std::array<std::pair<const char*, Gap>, 4> inert_gaps{{
+            {"WO1", Gap{1, WALL, OPP}},
+            {"WO2", Gap{2, WALL, OPP}},
+            {"OO1", Gap{1, OPP, OPP}},
+            {"OO2", Gap{2, OPP, OPP}},
+        }};
+        const std::array<std::pair<const char*, std::pair<std::uint8_t, std::uint8_t>>, 3> active_types{{
+            {"MO", {ME, OPP}},
+            {"MM", {ME, ME}},
+            {"OO", {OPP, OPP}},
+        }};
+
+        for (const auto& [inert_name, inert_gap] : inert_gaps) {
+            for (const auto& [active_name, active_type] : active_types) {
+                for (int m = 1; m <= max_m; ++m) {
+                    GapList state;
+                    state.push_back(inert_gap);
+                    state.push_back(Gap{
+                        static_cast<std::uint8_t>(m),
+                        active_type.first,
+                        active_type.second,
+                    });
+                    normalize_in_place(state);
+                    if (win_state(state)) continue;
+                    if (!write_inert_active_all_responses(out, inert_name, active_name, m, state)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     bool write_boundary_grid_csv(int max_sum, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -1114,6 +1155,83 @@ private:
         return found;
     }
 
+    bool write_inert_active_all_responses(
+        std::ofstream& out,
+        const char* inert_name,
+        const char* active_name,
+        int m,
+        GapList original_state) {
+        if (win_state(original_state)) {
+            std::cerr << "inert-active state is not losing: inert=" << inert_name
+                      << " active=" << active_name
+                      << " m=" << m << '\n';
+            return false;
+        }
+
+        for (std::size_t gap_index = 0; gap_index < original_state.size; ++gap_index) {
+            if (gap_index > 0 && original_state[gap_index] == original_state[gap_index - 1]) continue;
+            Gap gap = original_state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+
+                GapList child = child_after_move(original_state, gap_index, pos);
+                if (!write_all_inert_active_winning_responses(
+                        out, inert_name, active_name, m, original_state, gap, pos, child)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    bool write_all_inert_active_winning_responses(
+        std::ofstream& out,
+        const char* inert_name,
+        const char* active_name,
+        int m,
+        GapList original_state,
+        Gap move_gap,
+        int move_pos,
+        const GapList& state) {
+        if (!win_state(state)) return false;
+        bool found = false;
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, gap_index, pos);
+                if (win_state(child)) continue;
+                found = true;
+                out << inert_name << ','
+                    << active_name << ','
+                    << m << ','
+                    << total_empty(original_state) << ','
+                    << quote_gap_list(original_state) << ','
+                    << static_cast<int>(move_gap.m) << ','
+                    << static_cast<int>(move_gap.left) << ','
+                    << static_cast<int>(move_gap.right) << ','
+                    << move_pos << ','
+                    << static_cast<int>(gap.m) << ','
+                    << static_cast<int>(gap.left) << ','
+                    << static_cast<int>(gap.right) << ','
+                    << pos << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << '\n';
+            }
+        }
+        if (!found) {
+            std::cerr << "missing all inert-active response: inert=" << inert_name
+                      << " active=" << active_name
+                      << " m=" << m
+                      << " gap_m=" << static_cast<int>(move_gap.m)
+                      << " pos=" << move_pos << '\n';
+        }
+        return found;
+    }
+
     bool write_six_family_responses(std::ofstream& out, const char* family, int n, GapList state) {
         if (win_state(state)) {
             std::cerr << "six-family state is not losing: family=" << family
@@ -1617,6 +1735,7 @@ int main(int argc, char** argv) {
     int single_gap_children_max = -1;
     int gap_type_grid_max = -1;
     int inert_active_grid_max = -1;
+    int inert_active_response_max = -1;
     int boundary_grid_sum = -1;
     int obstruction_grid_max = -1;
     int obstruction_grid_delta = 12;
@@ -1639,6 +1758,7 @@ int main(int argc, char** argv) {
     std::string single_gap_children_csv;
     std::string gap_type_grid_csv;
     std::string inert_active_grid_csv;
+    std::string inert_active_response_csv;
     std::string boundary_grid_csv;
     std::string obstruction_grid_csv;
     std::string balanced_boundary_response_csv;
@@ -1686,6 +1806,10 @@ int main(int argc, char** argv) {
             inert_active_grid_max = std::atoi(argv[++i]);
         } else if (arg == "--inert-active-grid-csv" && i + 1 < argc) {
             inert_active_grid_csv = argv[++i];
+        } else if (arg == "--inert-active-response-max" && i + 1 < argc) {
+            inert_active_response_max = std::atoi(argv[++i]);
+        } else if (arg == "--inert-active-response-csv" && i + 1 < argc) {
+            inert_active_response_csv = argv[++i];
         } else if (arg == "--boundary-grid-sum" && i + 1 < argc) {
             boundary_grid_sum = std::atoi(argv[++i]);
         } else if (arg == "--boundary-grid-csv" && i + 1 < argc) {
@@ -1940,6 +2064,20 @@ int main(int argc, char** argv) {
             return 2;
         }
         std::cout << "wrote " << inert_active_grid_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (inert_active_response_max >= 0) {
+        if (inert_active_response_csv.empty()) {
+            std::cerr << "--inert-active-response-csv is required with --inert-active-response-max\n";
+            return 2;
+        }
+        if (!solver.write_inert_active_response_csv(inert_active_response_max, inert_active_response_csv)) {
+            std::cerr << "failed to write " << inert_active_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << inert_active_response_csv << '\n';
         std::cout << "states=" << solver.states() << '\n';
         return 0;
     }

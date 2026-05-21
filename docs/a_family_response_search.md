@@ -311,6 +311,31 @@ Q2(k): LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 `OO(1)` の両方が含まれ、単一の不活性成分を足した族とは振る舞いが変わる。
 そのため、複数の不活性成分を含む族も別に扱う必要がある。
 
+`Q0/Q1/Q2` の全応手を調べるには次を使う。
+
+```text
+./bin/solve_gap \
+  --inert-active-response-max 24 \
+  --inert-active-response-csv /tmp/inert_active_responses_24.csv
+
+PYTHONPATH=scripts python3 scripts/analyze_inert_active_responses.py \
+  --candidate-only --best-per-move /tmp/inert_active_responses_24.csv
+```
+
+この出力では、`Q2` は多くの手で `T` の有限直和、不活性成分付き `T`,
+または小さい `Q0/Q1/Q2`, `K0/K1` へ落ちる。一方、`Q0/Q1` にはまだ
+次のような active 残余が現れる。
+
+```text
+MO(a) + MO(b) + MO(c)
+MO(a) + MM(b)
+MM(a) + MO(b) + OO(c)
+```
+
+したがって、`Q0/Q1/Q2` だけでは同時帰納系は閉じない。次に必要なのは、
+これらの active 残余を含む族を、`K0/K1` と同じ系に吸収できるかを調べる
+ことである。
+
 この観点から、`K0/K1` の縮約補題は次のように言い換えられる。
 
 ```text

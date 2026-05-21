@@ -1,8 +1,9 @@
-# Nine-Family Proof Candidate
+# Nine-Family Losing Theorem
 
-This note gives a constructive proof plan for the nine-family losing class. The
-response tables below are explicit; what remains is to turn the table checks
-and the disjoint-sum argument into a fully polished proof.
+This note proves a nine-family losing theorem in the reduced gap game obtained
+after applying the non-capturing contact and edge-losing principles. The proof
+is constructive: every legal move from one of the listed states has an explicit
+response that returns to a smaller finite disjoint sum of listed states.
 
 ## Notation
 
@@ -32,16 +33,16 @@ T8:  WM(1) + OO(n) + MM(n)
 
 Here `n >= 1`.
 
-The intended theorem is:
+The theorem is:
 
 ```text
 Every state in T is losing for the player to move.
 ```
 
-The proof should be by induction on total empty count, strengthened to all
-finite disjoint sums of states in `T`. The response to a move in one component
-must move that component to a disjoint sum of smaller states in `T`; untouched
-components are unchanged after the two-ply move-response pair.
+The proof is by induction on total empty count, strengthened to all finite
+disjoint sums of states in `T`. The response to a move in one component moves
+that `T`-component to a disjoint sum of smaller states in `T`; untouched
+`T`-components are unchanged after the two-ply move-response pair.
 
 ## Basic Split Rule
 
@@ -365,10 +366,9 @@ T0 + MO(p) + MO(p) + MO(r) + MO(r).
 
 This is `T7(p) + T1(r)`.
 
-## Closure Work
+## Closure Conditions
 
-The response tables are now explicit. The remaining proof work is to check the
-legality bounds in each case and keep the induction statement clean:
+The response tables above satisfy the following closure conditions:
 
 - every displayed response position `q` is inside the untouched gap;
 - every displayed response is legal;
@@ -379,8 +379,8 @@ legality bounds in each case and keep the induction statement clean:
 - `T4(0)` is interpreted as `T0`;
 - zero-length components are omitted.
 
-After that, the nine-family theorem becomes a direct induction on total empty
-count for finite disjoint sums of `T`-states.
+These conditions are exactly what is needed for induction on total empty count
+for finite disjoint sums of `T`-states.
 
 ## Legality Bounds
 
@@ -437,22 +437,24 @@ S = C1 + ... + Ck
 where every `Ci` belongs to `T`. If all components are `T0`, there is no legal
 move.
 
-Otherwise, any legal move occurs in one component, say `Ci`. Use the response
-specified in the table for the family containing `Ci`. After the opponent's
-move and the response, the turn returns to the original orientation. Therefore
-all untouched components `Cj (j != i)` have the same relative boundary labels
-as before, while `Ci` has been replaced by a finite disjoint sum of `T`-states.
-The total empty count has decreased by two, so the resulting state satisfies
-the induction hypothesis and is losing for the next player.
+Otherwise, any legal move occurs inside one `T`-component, say `Ci`. Use the
+response specified in the table for the family containing `Ci`; the response is
+also played inside `Ci`, although it may be in a different gap of that
+`T`-component. After the move and response, the turn returns to the original
+orientation. Therefore all untouched `T`-components `Cj (j != i)` have the same
+relative boundary labels as before, while `Ci` has been replaced by a finite
+disjoint sum of `T`-states. The total empty count has decreased by two, so the
+resulting state satisfies the induction hypothesis and is losing for the next
+player.
 
 Thus every first move from `S` can be answered by a move to a smaller losing
 state. Hence `S` is losing. Applying this to the one-component sums proves
 that each state in `T0..T8` is losing.
 
 This is the required disjoint-sum step for this normal-play setting. The
-important point is that the response is always made in the component where the
-first move occurred, so all other components are flipped twice and return to
-their original relative labels.
+important point is that the response is always made in the same `T`-component
+where the first move occurred, so all other `T`-components are flipped twice
+and return to their original relative labels.
 
 ## Consequence for `P(s)`
 

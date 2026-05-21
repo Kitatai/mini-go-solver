@@ -769,6 +769,51 @@ public:
         return true;
     }
 
+    bool write_active_residual_response_csv(int max_len, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,a,b,c,total_empty,state,"
+            << "current_gap_m,current_gap_left,current_gap_right,current_pos,"
+            << "response_gap_m,response_gap_left,response_gap_right,response_pos,"
+            << "response_child_gap_count,response_child_gaps\n";
+        for (int a = 1; a <= max_len; ++a) {
+            for (int b = a; b <= max_len; ++b) {
+                for (int c = b; c <= max_len; ++c) {
+                    GapList state = residual_mo_mo_mo(a, b, c);
+                    if (!win_state(state)) {
+                        if (!write_three_parameter_all_responses(out, "M3_MO_MO_MO", a, b, c, state)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        for (int a = 1; a <= max_len; ++a) {
+            for (int b = 1; b <= max_len; ++b) {
+                GapList state = residual_mo_mm(a, b);
+                if (!win_state(state)) {
+                    if (!write_three_parameter_all_responses(out, "M2_MO_MM", a, b, 0, state)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        for (int a = 1; a <= max_len; ++a) {
+            for (int b = 1; b <= max_len; ++b) {
+                for (int c = 1; c <= max_len; ++c) {
+                    GapList state = residual_mm_mo_oo(a, b, c);
+                    if (!win_state(state)) {
+                        if (!write_three_parameter_all_responses(out, "M3_MM_MO_OO", a, b, c, state)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     bool write_auxiliary_response_csv(int max_r, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -1219,6 +1264,88 @@ private:
             std::cerr << "missing all two-parameter response: family=" << family
                       << " s=" << s
                       << " t=" << t
+                      << " gap_m=" << static_cast<int>(move_gap.m)
+                      << " pos=" << move_pos << '\n';
+        }
+        return found;
+    }
+
+    bool write_three_parameter_all_responses(
+        std::ofstream& out,
+        const char* family,
+        int a,
+        int b,
+        int c,
+        GapList original_state) {
+        if (win_state(original_state)) {
+            std::cerr << "three-parameter state is not losing: family=" << family
+                      << " a=" << a
+                      << " b=" << b
+                      << " c=" << c << '\n';
+            return false;
+        }
+
+        for (std::size_t gap_index = 0; gap_index < original_state.size; ++gap_index) {
+            if (gap_index > 0 && original_state[gap_index] == original_state[gap_index - 1]) continue;
+            Gap gap = original_state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+
+                GapList child = child_after_move(original_state, gap_index, pos);
+                if (!write_all_three_parameter_winning_responses(
+                        out, family, a, b, c, original_state, gap, pos, child)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    bool write_all_three_parameter_winning_responses(
+        std::ofstream& out,
+        const char* family,
+        int a,
+        int b,
+        int c,
+        GapList original_state,
+        Gap move_gap,
+        int move_pos,
+        const GapList& state) {
+        if (!win_state(state)) return false;
+        bool found = false;
+        for (std::size_t gap_index = 0; gap_index < state.size; ++gap_index) {
+            if (gap_index > 0 && state[gap_index] == state[gap_index - 1]) continue;
+            Gap gap = state[gap_index];
+            int pos_limit = gap.left == gap.right ? (gap.m + 1) / 2 : gap.m;
+            for (int pos = 0; pos < pos_limit; ++pos) {
+                if (!is_legal_move(gap, pos)) continue;
+                GapList child = child_after_move(state, gap_index, pos);
+                if (win_state(child)) continue;
+                found = true;
+                out << family << ','
+                    << a << ','
+                    << b << ','
+                    << c << ','
+                    << total_empty(original_state) << ','
+                    << quote_gap_list(original_state) << ','
+                    << static_cast<int>(move_gap.m) << ','
+                    << static_cast<int>(move_gap.left) << ','
+                    << static_cast<int>(move_gap.right) << ','
+                    << move_pos << ','
+                    << static_cast<int>(gap.m) << ','
+                    << static_cast<int>(gap.left) << ','
+                    << static_cast<int>(gap.right) << ','
+                    << pos << ','
+                    << child.size << ','
+                    << quote_gap_list(child) << '\n';
+            }
+        }
+        if (!found) {
+            std::cerr << "missing all three-parameter response: family=" << family
+                      << " a=" << a
+                      << " b=" << b
+                      << " c=" << c
                       << " gap_m=" << static_cast<int>(move_gap.m)
                       << " pos=" << move_pos << '\n';
         }
@@ -1819,6 +1946,7 @@ int main(int argc, char** argv) {
     int a2_k_response_max = -1;
     int a2_k_all_response_max = -1;
     int active_residual_grid_max = -1;
+    int active_residual_response_max = -1;
     int six_family_response_max = -1;
     int six_family_all_response_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
@@ -1842,6 +1970,7 @@ int main(int argc, char** argv) {
     std::string a2_k_response_csv;
     std::string a2_k_all_response_csv;
     std::string active_residual_grid_csv;
+    std::string active_residual_response_csv;
     std::string six_family_response_csv;
     std::string six_family_all_response_csv;
     for (int i = 1; i < argc; ++i) {
@@ -1932,6 +2061,10 @@ int main(int argc, char** argv) {
             active_residual_grid_max = std::atoi(argv[++i]);
         } else if (arg == "--active-residual-grid-csv" && i + 1 < argc) {
             active_residual_grid_csv = argv[++i];
+        } else if (arg == "--active-residual-response-max" && i + 1 < argc) {
+            active_residual_response_max = std::atoi(argv[++i]);
+        } else if (arg == "--active-residual-response-csv" && i + 1 < argc) {
+            active_residual_response_csv = argv[++i];
         } else if (arg == "--six-family-response-max" && i + 1 < argc) {
             six_family_response_max = std::atoi(argv[++i]);
         } else if (arg == "--six-family-response-csv" && i + 1 < argc) {
@@ -2096,6 +2229,20 @@ int main(int argc, char** argv) {
             return 2;
         }
         std::cout << "wrote " << active_residual_grid_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (active_residual_response_max >= 0) {
+        if (active_residual_response_csv.empty()) {
+            std::cerr << "--active-residual-response-csv is required with --active-residual-response-max\n";
+            return 2;
+        }
+        if (!solver.write_active_residual_response_csv(active_residual_response_max, active_residual_response_csv)) {
+            std::cerr << "failed to write " << active_residual_response_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << active_residual_response_csv << '\n';
         std::cout << "states=" << solver.states() << '\n';
         return 0;
     }

@@ -346,6 +346,17 @@ active 残余を直接調べるには次を使う。
 python3 scripts/analyze_active_residual_grid.py /tmp/active_residual_grid_14.csv
 ```
 
+負けになった active 残余の全応手を見るには次を使う。
+
+```text
+./bin/solve_gap \
+  --active-residual-response-max 10 \
+  --active-residual-response-csv /tmp/active_residual_responses_10.csv
+
+PYTHONPATH=scripts python3 scripts/analyze_active_residual_responses.py \
+  --best-per-move /tmp/active_residual_responses_10.csv
+```
+
 `max=14` の観測では、次が分かる。
 
 - `MO(a)+MM(b)` は全て勝ちであり、負け補助族としては使えない。
@@ -356,7 +367,21 @@ python3 scripts/analyze_active_residual_grid.py /tmp/active_residual_grid_14.csv
 - `MM(a)+MO(b)+OO(c)` は負けが散発的に現れ、単純な偶奇だけでは
   まだ整理できない。
 
-したがって、次の主対象は `MM(a)+MO(b)+OO(c)` である。
+応手表からは、`MO(1)+MO(n)+MO(n)` は期待通り `T` の有限直和と
+不活性成分へ落ちることが確認できる。一方、`MM(a)+MO(b)+OO(c)` は、
+応手後にさらに
+
+```text
+MM + MO + OO
+MM + MO + OO + 不活性成分
+MM + MO + MO + OO
+MM + MM + MO + OO
+```
+
+のようなより大きい active 残余を作る場合がある。したがって、次の主対象は
+`MM(a)+MO(b)+OO(c)` であるが、これを単独の 3-gap 族として証明するだけでは
+不十分である可能性が高い。有限個の名前付き族を手で増やす方針から、
+「許された残余の文法」と「減少する測度」を明示する方針へ移る必要がある。
 
 この観点から、`K0/K1` の縮約補題は次のように言い換えられる。
 

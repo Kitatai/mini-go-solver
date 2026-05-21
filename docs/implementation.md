@@ -125,6 +125,8 @@ active 残余の候補を調べるには次を使う。
 ```text
 --active-residual-grid-max
 --active-residual-grid-csv
+--active-residual-response-max
+--active-residual-response-csv
 ```
 
 ## メモ化

@@ -251,6 +251,7 @@ odd-board center first move is winning
 the nine-family finite-sum theorem in the reduced gap game
 P(s) is losing for all s >= 2 in the reduced gap game
 initial moves i = 1 and i = N - 2 are losing for N >= 5
+odd-board center-adjacent first moves are losing for N >= 5
 ```
 
 What is currently established by exact computation:
@@ -270,4 +271,40 @@ What remains open:
 2. Determine whether the observed full first-move classification for `N >= 20`
    is always true.
 3. If the full classification is true, find a separate argument for the
-   remaining winning first moves and for the odd-center-adjacent losing moves.
+   remaining winning first moves.
+
+## Odd Center-Adjacent Moves
+
+Let `N = 2k + 1`. If Black opens at the left neighbor of the center, position
+`k - 1`, then White sees the two-gap state
+
+```text
+WO(k - 1) + WO(k + 1).
+```
+
+This is the structural form behind the loss of the center-adjacent first moves
+on odd boards. It is not covered directly by the nine-family theorem: after a
+White move at position `p` in the larger gap, Black receives
+
+```text
+WM(k - 1) + WO(p) + MO(k - p).
+```
+
+The useful response is the reflected point, corresponding to `p = k - 1`.
+Then Black receives
+
+```text
+R(k - 1) = MO(1) + WM(k - 1) + WO(k - 1).
+```
+
+The family
+
+```text
+R(a) = MO(1) + WM(a) + WO(a)
+```
+
+is losing for all `a >= 1`: moves in `WM(a)` are answered in `WO(a)` at the
+same position, giving `R(p) + T2(a - p - 1)`, and moves in `WO(a)` are answered
+in `WM(a)` at the same position, giving `R(p) + T1(a - p - 1)`.
+
+The detailed proof is written in `docs/center_adjacent_proof.md`.

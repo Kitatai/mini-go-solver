@@ -583,6 +583,20 @@ public:
         return true;
     }
 
+    bool write_a2_k_grid_csv(int max_len, const std::string& path) {
+        std::ofstream out(path);
+        if (!out) return false;
+
+        out << "family,s,t,total_empty,current_player_result,state\n";
+        for (int s = 1; s <= max_len; ++s) {
+            for (int t = s; t <= max_len; ++t) {
+                write_two_parameter_row(out, "K0_WO2_MO_MO", s, t, a2_k0(s, t));
+                write_two_parameter_row(out, "K1_OO1_WO2_MO_MO", s, t, a2_k1(s, t));
+            }
+        }
+        return true;
+    }
+
     bool write_auxiliary_response_csv(int max_r, const std::string& path) {
         std::ofstream out(path);
         if (!out) return false;
@@ -711,6 +725,25 @@ private:
         return state;
     }
 
+    GapList a2_k0(int s, int t) {
+        GapList state;
+        state.push_back(Gap{2, WALL, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(s), ME, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(t), ME, OPP});
+        normalize_in_place(state);
+        return state;
+    }
+
+    GapList a2_k1(int s, int t) {
+        GapList state;
+        state.push_back(Gap{1, OPP, OPP});
+        state.push_back(Gap{2, WALL, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(s), ME, OPP});
+        state.push_back(Gap{static_cast<std::uint8_t>(t), ME, OPP});
+        normalize_in_place(state);
+        return state;
+    }
+
     GapList two_gap_state(int a, std::uint8_t a_left, std::uint8_t a_right,
                           int b, std::uint8_t b_left, std::uint8_t b_right) {
         GapList state;
@@ -756,6 +789,21 @@ private:
         bool current_wins = win_state(state);
         out << family << ','
             << r << ','
+            << total_empty(state) << ','
+            << (current_wins ? 'W' : 'L') << ','
+            << quote_gap_list(state) << '\n';
+    }
+
+    void write_two_parameter_row(
+        std::ofstream& out,
+        const char* family,
+        int s,
+        int t,
+        GapList state) {
+        bool current_wins = win_state(state);
+        out << family << ','
+            << s << ','
+            << t << ','
             << total_empty(state) << ','
             << (current_wins ? 'W' : 'L') << ','
             << quote_gap_list(state) << '\n';
@@ -1334,6 +1382,7 @@ int main(int argc, char** argv) {
     int auxiliary_response_max = -1;
     int a2_helper_grid_max = -1;
     int a2_helper_response_max = -1;
+    int a2_k_grid_max = -1;
     int six_family_response_max = -1;
     int six_family_all_response_max = -1;
     std::string results_path = "results/updated_rules/results_new_rules_n2_37.md";
@@ -1350,6 +1399,7 @@ int main(int argc, char** argv) {
     std::string auxiliary_response_csv;
     std::string a2_helper_grid_csv;
     std::string a2_helper_response_csv;
+    std::string a2_k_grid_csv;
     std::string six_family_response_csv;
     std::string six_family_all_response_csv;
     for (int i = 1; i < argc; ++i) {
@@ -1412,6 +1462,10 @@ int main(int argc, char** argv) {
             a2_helper_response_max = std::atoi(argv[++i]);
         } else if (arg == "--a2-helper-response-csv" && i + 1 < argc) {
             a2_helper_response_csv = argv[++i];
+        } else if (arg == "--a2-k-grid-max" && i + 1 < argc) {
+            a2_k_grid_max = std::atoi(argv[++i]);
+        } else if (arg == "--a2-k-grid-csv" && i + 1 < argc) {
+            a2_k_grid_csv = argv[++i];
         } else if (arg == "--six-family-response-max" && i + 1 < argc) {
             six_family_response_max = std::atoi(argv[++i]);
         } else if (arg == "--six-family-response-csv" && i + 1 < argc) {
@@ -1520,6 +1574,20 @@ int main(int argc, char** argv) {
             return 2;
         }
         std::cout << "wrote " << a2_helper_grid_csv << '\n';
+        std::cout << "states=" << solver.states() << '\n';
+        return 0;
+    }
+
+    if (a2_k_grid_max >= 0) {
+        if (a2_k_grid_csv.empty()) {
+            std::cerr << "--a2-k-grid-csv is required with --a2-k-grid-max\n";
+            return 2;
+        }
+        if (!solver.write_a2_k_grid_csv(a2_k_grid_max, a2_k_grid_csv)) {
+            std::cerr << "failed to write " << a2_k_grid_csv << '\n';
+            return 2;
+        }
+        std::cout << "wrote " << a2_k_grid_csv << '\n';
         std::cout << "states=" << solver.states() << '\n';
         return 0;
     }

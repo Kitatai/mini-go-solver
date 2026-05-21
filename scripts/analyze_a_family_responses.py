@@ -69,10 +69,36 @@ def remove_known_t_components(
     return labels, gaps
 
 
+def remove_r_component(gaps: list[tuple[int, int, int]]) -> list[tuple[int, int, int]] | None:
+    for n in range(1, 128):
+        rest = list(gaps)
+        for gap in [(1, 1, 2), (n, 0, 1), (n, 0, 2)]:
+            next_rest = remove_once(rest, gap)
+            if next_rest is None:
+                break
+            rest = next_rest
+        else:
+            return rest
+    return None
+
+
 def classify_child(text: str) -> str:
-    labels, remainder = remove_known_t_components(parse_state(text))
+    original = parse_state(text)
+    rest_after_r = remove_r_component(original)
+    if rest_after_r is not None:
+        _, r_remainder = remove_known_t_components(rest_after_r)
+        if not r_remainder:
+            return "R+T"
+
+    labels, remainder = remove_known_t_components(original)
     if not remainder:
         return "T-only"
+
+    rest_after_r = remove_r_component(remainder)
+    if rest_after_r is not None:
+        _, r_remainder = remove_known_t_components(rest_after_r)
+        if not r_remainder:
+            return "R+T"
 
     rem = remove_once(remainder, (2, 0, 2))
     if rem is not None and len(rem) == 1 and rem[0][1:] == (0, 2):
@@ -109,6 +135,8 @@ def main() -> None:
                 counts["T-only-covered"] += 1
             elif "A(2,k)+T" in classes:
                 counts["A2-covered"] += 1
+            elif "R+T" in classes:
+                counts["R-covered"] += 1
             elif "WO(2)+T" in classes:
                 counts["WO2-covered"] += 1
             else:
@@ -118,6 +146,7 @@ def main() -> None:
             f"A({a},{b}) moves={total} "
             f"T={counts['T-only-covered']} "
             f"A2={counts['A2-covered']} "
+            f"R={counts['R-covered']} "
             f"WO2={counts['WO2-covered']} "
             f"other={counts['other-only']}"
         )

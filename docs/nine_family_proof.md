@@ -62,6 +62,21 @@ reflection.
 
 This rule is the only local transition rule used below.
 
+## Coordinate Convention
+
+The tables name components in canonical orientation. If a physical gap is the
+left-right reflection of the displayed component, the coordinate is reflected
+with it.
+
+For example, after a turn pass, an untouched physical `MO(n)` component becomes
+`OM(n)`. Since the canonical representative is again `MO(n)`, a displayed
+response at coordinate `q` in `MO(n)` means the physical coordinate `n - 1 - q`
+in the reflected `OM(n)` gap.
+
+Thus all displayed response coordinates are canonical coordinates in the gap
+named by the table. This is why endpoint responses such as `q = 0` can be legal
+when the physical gap has been reflected before canonicalization.
+
 ## T1: `MO(n) + MO(n)`
 
 By symmetry, consider a move in one `MO(n)` at position `p`. The move is legal
@@ -336,6 +351,10 @@ conditions for each gap:
 - in `WO(n)`, legal moves have `1 <= p <= n - 2`;
 - in `MM(n)`, all positions are legal, but by reflection it is enough to check
   the canonical half.
+
+These bounds are for the displayed canonical component. If the physical
+response gap is reflected before canonicalization, the reflected physical
+coordinate is used, as described above.
 
 For `T4`, a move in `WM(n + 1)` has `1 <= p <= n`. The response is:
 

@@ -25,6 +25,7 @@
 - `nine_family_proof.md`: 近端初手を支える 9 族負け定理の証明本体。
 - `nine_family_response_tables.md`: 9 族定理で使う応手表。
 - `center_adjacent_proof.md`: 奇数盤面の中央隣初手が負けであることの証明。
+- `a_family_partial_proof.md`: `A(a,b)=WO(a)+WO(b)` のうち、均衡型と近均衡型が負けであることの証明。
 - `proof_attempt.md`: 全体分類を証明するための未解決課題の整理。
 - `implementation.md`: ソルバー実装の概要。
 
@@ -102,3 +103,6 @@ A(i, N - i - 1) = WO(i) + WO(N - i - 1)
 
 観測されている `N >= 20` の分類を完全に証明するには、証明済みの負け手
 を除いた範囲で `A(a,b)` が負けであることを示す必要がある。
+
+このうち `A(n,n)` と `A(n,n+1)` は、9 族負け定理だけで証明できる。
+残る本質的な難所は、`|a-b| >= 3` の `A(a,b)` である。

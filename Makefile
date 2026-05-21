@@ -36,4 +36,4 @@ png: plot
 	rsvg-convert $(RESULTS_DIR)/results_new_rules_n2_32.svg -o $(RESULTS_DIR)/results_new_rules_n2_32.png
 
 clean:
-	rm -rf $(BIN_DIR)
+	rm -rf $(BIN_DIR) scripts/__pycache__ scripts/.pytest_cache

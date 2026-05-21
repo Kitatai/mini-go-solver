@@ -149,6 +149,8 @@ K1(s,t) = OO(1) + WO(2) + MO(s) + MO(t)
 ./bin/solve_gap \
   --a2-k-grid-max 18 \
   --a2-k-grid-csv /tmp/a2_k_grid_18.csv
+
+python3 scripts/analyze_a2_k_grid.py /tmp/a2_k_grid_18.csv
 ```
 
 観測された列は次である。

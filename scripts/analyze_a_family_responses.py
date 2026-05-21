@@ -6,106 +6,7 @@ import csv
 from collections import Counter, defaultdict
 from pathlib import Path
 
-
-def canon(gap: tuple[int, int, int]) -> tuple[int, int, int]:
-    m, left, right = gap
-    return min(gap, (m, right, left))
-
-
-def parse_state(text: str) -> list[tuple[int, int, int]]:
-    text = text.strip().strip('"')
-    if not text:
-        return []
-    return sorted(canon(tuple(map(int, item.split(":")))) for item in text.split())
-
-
-def remove_once(items: list[tuple[int, int, int]], item: tuple[int, int, int]) -> list[tuple[int, int, int]] | None:
-    item = canon(item)
-    try:
-        index = items.index(item)
-    except ValueError:
-        return None
-    return items[:index] + items[index + 1 :]
-
-
-def remove_known_t_components(
-    gaps: list[tuple[int, int, int]],
-) -> tuple[list[str], list[tuple[int, int, int]]]:
-    gaps = list(gaps)
-    labels: list[str] = []
-    changed = True
-    while changed:
-        changed = False
-        without_t0 = remove_once(gaps, (1, 0, 1))
-        if without_t0 is not None:
-            gaps = without_t0
-            labels.append("T0")
-            changed = True
-            continue
-
-        for n in range(1, 128):
-            patterns = [
-                (f"T1({n})", [(n, 1, 2), (n, 1, 2)]),
-                (f"T2({n})", [(n, 2, 2), (n, 1, 1)]),
-                (f"T3({n})", [(n, 2, 2), (n, 0, 1)]),
-                (f"T4({n})", [(n, 2, 2), (n + 1, 0, 1)]),
-                (f"T5({n})", [(n, 0, 2), (n, 1, 2)]),
-                (f"T6({n})", [(n + 1, 0, 2), (n, 1, 2)]),
-            ]
-            for label, pattern in patterns:
-                rest = list(gaps)
-                for gap in pattern:
-                    next_rest = remove_once(rest, gap)
-                    if next_rest is None:
-                        break
-                    rest = next_rest
-                else:
-                    gaps = rest
-                    labels.append(label)
-                    changed = True
-                    break
-            if changed:
-                break
-    return labels, gaps
-
-
-def remove_r_component(gaps: list[tuple[int, int, int]]) -> list[tuple[int, int, int]] | None:
-    for n in range(1, 128):
-        rest = list(gaps)
-        for gap in [(1, 1, 2), (n, 0, 1), (n, 0, 2)]:
-            next_rest = remove_once(rest, gap)
-            if next_rest is None:
-                break
-            rest = next_rest
-        else:
-            return rest
-    return None
-
-
-def classify_child(text: str) -> str:
-    original = parse_state(text)
-    rest_after_r = remove_r_component(original)
-    if rest_after_r is not None:
-        _, r_remainder = remove_known_t_components(rest_after_r)
-        if not r_remainder:
-            return "R+T"
-
-    labels, remainder = remove_known_t_components(original)
-    if not remainder:
-        return "T-only"
-
-    rest_after_r = remove_r_component(remainder)
-    if rest_after_r is not None:
-        _, r_remainder = remove_known_t_components(rest_after_r)
-        if not r_remainder:
-            return "R+T"
-
-    rem = remove_once(remainder, (2, 0, 2))
-    if rem is not None and len(rem) == 1 and rem[0][1:] == (0, 2):
-        return "A(2,k)+T"
-    if rem is not None and not rem:
-        return "WO(2)+T"
-    return "other"
+from gap_state import classify_a_family_child
 
 
 def main() -> None:
@@ -150,6 +51,10 @@ def main() -> None:
             f"WO2={counts['WO2-covered']} "
             f"other={counts['other-only']}"
         )
+
+
+def classify_child(text: str) -> str:
+    return classify_a_family_child(text)
 
 
 if __name__ == "__main__":

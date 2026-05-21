@@ -5,18 +5,18 @@ import argparse
 import csv
 from collections import Counter, defaultdict
 from pathlib import Path
-import sys
 
-sys.path.append(str(Path(__file__).resolve().parent))
-from analyze_a_family_responses import (  # noqa: E402
-    classify_child,
+from gap_state import (
+    Gap,
+    classify_a_family_child,
+    format_state,
     parse_state,
     remove_known_t_components,
     remove_once,
 )
 
 
-def has_family_h0(gaps: list[tuple[int, int, int]]) -> int | None:
+def has_family_h0(gaps: list[Gap]) -> int | None:
     rest = remove_once(gaps, (1, 0, 1))
     if rest is None:
         return None
@@ -31,7 +31,7 @@ def has_family_h0(gaps: list[tuple[int, int, int]]) -> int | None:
     return None
 
 
-def has_family_h1(gaps: list[tuple[int, int, int]]) -> int | None:
+def has_family_h1(gaps: list[Gap]) -> int | None:
     rest = remove_once(gaps, (1, 0, 1))
     if rest is None:
         return None
@@ -58,12 +58,12 @@ def classify_response_child(text: str) -> str:
     if h1 is not None:
         return f"H1({h1})"
 
-    base = classify_child(text)
+    base = classify_a_family_child(text)
     if base != "other":
         return base
 
     _, remainder = remove_known_t_components(gaps)
-    return "rem=" + " ".join(f"{m}:{left}:{right}" for m, left, right in remainder)
+    return "rem=" + format_state(remainder)
 
 
 def main() -> None:

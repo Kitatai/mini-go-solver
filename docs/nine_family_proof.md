@@ -64,25 +64,21 @@ This rule is the only local transition rule used below.
 
 ## Coordinate Convention
 
-The tables name components in the canonical orientation of the state before
-the first move. A phrase such as "respond in the untouched `OO(n)` component"
-means "respond in the component that was `OO(n)` before the first move". After
-the first move and turn pass, that same physical component may be labelled
-`MM(n)` from the responder's perspective.
+The state is normalized after each turn pass. Therefore the response tables use
+the responder's normalized coordinates, not the physical coordinates before the
+first move.
 
 If a physical gap is the left-right reflection of the displayed component, the
-coordinate is reflected with it.
+coordinate is reflected with it during normalization.
 
 For example, after a turn pass, an untouched physical `MO(n)` component becomes
-`OM(n)`. Since the canonical representative is again `MO(n)`, a displayed
-response at coordinate `q` in `MO(n)` means the physical coordinate `n - 1 - q`
-in the reflected `OM(n)` gap.
+`OM(n)`. Since the canonical representative is again `MO(n)`, responder
+coordinate `q` in the displayed `MO(n)` component means physical coordinate
+`n - 1 - q` in the reflected `OM(n)` gap.
 
-Thus all displayed response coordinates are canonical coordinates in the
-pre-move component named by the table. Before playing the actual response, one
-applies the turn flip and, if needed, the left-right reflection. This is why
-endpoint responses such as `q = 0` can be legal when the physical gap has been
-reflected before canonicalization.
+Similarly, a component that was `OO(n)` before the first move is seen as
+`MM(n)` after the turn pass. The response descriptions below name this
+responder-visible component when the distinction matters.
 
 ## T1: `MO(n) + MO(n)`
 
@@ -117,8 +113,8 @@ There are two move types.
 
 ### Move in `MM(n)`
 
-For a move at position `p` in `MM(n)`, respond at position `p` in the untouched
-`OO(n)`.
+For a move at position `p` in `MM(n)`, respond at position `p` in the component
+that came from the untouched `OO(n)`. The responder sees it as `MM(n)`.
 
 Let `r = n - p - 1`. After both moves:
 
@@ -131,7 +127,8 @@ This decomposes into `T2(p) + T2(r)`, omitting zero terms.
 ### Move in `OO(n)`
 
 A legal move in `OO(n)` has `1 <= p <= n - 2`. Respond at position `p` in the
-untouched `MM(n)`.
+component that came from the untouched `MM(n)`. The responder sees it as
+`OO(n)`.
 
 Let `r = n - p - 1`. After both moves:
 
@@ -147,7 +144,8 @@ There are two move types.
 
 ### Move in `WM(n)`
 
-Respond in the untouched `OO(n)` at
+Respond in the component that came from the untouched `OO(n)`. The responder
+sees it as `MM(n)`. Use position
 
 ```text
 q = min(p, n - 1 - p).
@@ -175,7 +173,8 @@ T2(r) + T3(p).
 
 ### Move in `OO(n)`
 
-Respond at `q = p` in the untouched `WM(n)`.
+Respond at `q = p` in the component that came from the untouched `WM(n)`. The
+responder sees it as `WO(n)`.
 
 The response child decomposes into one `T1` component and one smaller `T5`
 component.
@@ -192,7 +191,8 @@ There are two move types.
 
 ### Move in `OO(n)`
 
-Respond in the untouched `WM(n + 1)` gap at
+Respond in the component that came from the untouched `WM(n + 1)` gap. The
+responder sees it as `WO(n + 1)`. Use position
 
 ```text
 q = n - p.
@@ -208,7 +208,8 @@ T1(p) + T6(r).
 
 ### Move in `WM(n + 1)`
 
-Let the move position be `p`. Respond in the untouched `OO(n)` gap by:
+Let the move position be `p`. Respond in the component that came from the
+untouched `OO(n)` gap. The responder sees it as `MM(n)`. Use:
 
 ```text
 q = p - 1           if p <= floor(n / 2)
@@ -232,7 +233,8 @@ There are two move types.
 
 ### Move in `WO(n)`
 
-Respond at `q = p` in the untouched `MO(n)`.
+Respond at `q = p` in the component that came from the untouched `MO(n)`. After
+normalization the responder sees it as `MO(n)`.
 
 The response child decomposes into `T1` and `T3` components.
 
@@ -250,7 +252,8 @@ Respond at
 q = n - 1 - p
 ```
 
-in the untouched `WO(n)`.
+in the component that came from the untouched `WO(n)`. The responder sees it as
+`WM(n)`.
 
 The response child decomposes into `T2` and `T5` components.
 
@@ -266,7 +269,8 @@ There are two move types.
 
 ### Move in `MO(n)`
 
-Respond in the untouched `WO(n + 1)` gap at
+Respond in the component that came from the untouched `WO(n + 1)` gap. The
+responder sees it as `WM(n + 1)`. Use position
 
 ```text
 q = n - p.
@@ -288,7 +292,9 @@ Respond at
 q = p - 1
 ```
 
-in the untouched `MO(n)`. In length-matching notation this is `right-mirror`.
+in the component that came from the untouched `MO(n)`. After normalization the
+responder sees it as `MO(n)`. In length-matching notation this is
+`right-mirror`.
 
 Let `r = n - p`. The child is:
 
@@ -329,7 +335,8 @@ Use the same-position response as in `T2`.
 
 ### Move in `MM(n)`
 
-Respond at position `p` in the untouched `OO(n)` component.
+Respond at position `p` in the component that came from the untouched `OO(n)`.
+The responder sees it as `MM(n)`.
 
 Let `r = n - p - 1`. After both moves, the response child is:
 
@@ -349,8 +356,8 @@ Therefore:
 A legal move in `OO(n)` has `1 <= p <= n - 2`, so both `p` and
 `r = n - p - 1` are positive.
 
-Respond at position `p` in the untouched `MM(n)` component. After both moves,
-the response child is:
+Respond at position `p` in the component that came from the untouched `MM(n)`.
+The responder sees it as `OO(n)`. After both moves, the response child is:
 
 ```text
 T0 + MO(p) + MO(p) + MO(r) + MO(r).

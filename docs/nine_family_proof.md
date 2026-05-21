@@ -1,13 +1,14 @@
-# Nine-Family Losing Theorem
+# 9 族負け定理
 
-This note proves a nine-family losing theorem in the reduced gap game obtained
-after applying the non-capturing contact and edge-losing principles. The proof
-is constructive: every legal move from one of the listed states has an explicit
-response that returns to a smaller finite disjoint sum of listed states.
+この文書では、非捕獲接触手と端への非捕獲手を除外した後の空き区間
+ゲームにおいて、9 種類の負け局面族を証明する。
 
-## Notation
+証明は構成的である。列挙した各族からの任意の合法手に対して、明示的な
+応手を与え、その結果がより小さい 9 族局面の有限直和になることを示す。
 
-Use relative boundary notation:
+## 記法
+
+境界を手番プレイヤーから見た相対記法で表す。
 
 ```text
 WM(n) = Gap(n, wall, current)
@@ -17,7 +18,7 @@ MO(n) = Gap(n, current, opponent)
 OO(n) = Gap(n, opponent, opponent)
 ```
 
-Let `T` be the following class of losing states:
+次の 9 族を `T` とする。
 
 ```text
 T0:  WM(1)
@@ -31,474 +32,186 @@ T7:  WM(1) + MO(n) + MO(n)
 T8:  WM(1) + OO(n) + MM(n)
 ```
 
-Here `n >= 1`.
+ここで `n >= 1` である。
 
-The theorem is:
+示す定理は次である。
 
 ```text
-Every state in T is losing for the player to move.
+T の任意の局面は、手番プレイヤーの負けである。
 ```
 
-The proof is by induction on total empty count, strengthened to all finite
-disjoint sums of states in `T`. The response to a move in one component moves
-that `T`-component to a disjoint sum of smaller states in `T`; untouched
-`T`-components are unchanged after the two-ply move-response pair.
+証明は空点数に関する帰納法で行う。ただし、単一の `T` 局面だけでなく、
+`T` 局面の有限直和全体に対して主張を強める。ある `T` 成分の中に打たれた
+手は、同じ `T` 成分の中で応手し、その成分をより小さい `T` 局面の有限直和
+へ移す。触られていない `T` 成分は、2 手後には相対境界が元に戻る。
 
-## Basic Split Rule
+## 基本分割規則
 
-If the current player moves at position `p` in `Gap(m, L, R)`, write
+手番プレイヤーが `Gap(m, L, R)` の位置 `p` に打つとする。
 
 ```text
 r = m - p - 1.
 ```
 
-After the move and turn pass, the selected gap contributes:
+着手後に手番が交代すると、この gap は次の 2 つに分かれる。
 
 ```text
 Gap(p, flip(L), opponent) + Gap(r, opponent, flip(R))
 ```
 
-where zero-length gaps are omitted. All gaps are canonicalized by left-right
-reflection.
+ゼロ長の gap は省略する。また、左右反転で同型な gap は正規化して同一視する。
 
-This rule is the only local transition rule used below.
+以下で使う局所遷移規則はこれだけである。
 
-## Coordinate Convention
+## 座標の規約
 
-The state is normalized after each turn pass. Therefore the response tables use
-the responder's normalized coordinates, not the physical coordinates before the
-first move.
+局面は手番交代のたびに正規化される。そのため、応手表の座標は、応手側から
+見た正規化後の座標である。最初の手が打たれる前の物理的な座標ではない。
 
-If a physical gap is the left-right reflection of the displayed component, the
-coordinate is reflected with it during normalization.
+物理的な gap が表示された成分の左右反転になっている場合、正規化の際に
+座標も反転して読む。
 
-For example, after a turn pass, an untouched physical `MO(n)` component becomes
-`OM(n)`. Since the canonical representative is again `MO(n)`, responder
-coordinate `q` in the displayed `MO(n)` component means physical coordinate
-`n - 1 - q` in the reflected `OM(n)` gap.
+例えば、手番交代後、触られていない物理的な `MO(n)` 成分は `OM(n)` に
+なる。正規形は再び `MO(n)` なので、表示上の `MO(n)` における応手座標
+`q` は、物理的には反転した `OM(n)` の座標 `n - 1 - q` を意味する。
 
-Similarly, a component that was `OO(n)` before the first move is seen as
-`MM(n)` after the turn pass. The response descriptions below name this
-responder-visible component when the distinction matters.
+同様に、最初の手の前に `OO(n)` だった成分は、手番交代後には `MM(n)` と
+見える。応手表では、必要に応じて応手側から見える名前で成分を呼ぶ。
 
-## T1: `MO(n) + MO(n)`
+## 応手表
 
-By symmetry, consider a move in one `MO(n)` at position `p`. The move is legal
-for `0 <= p <= n - 2`.
+各族に対する具体的な応手位置と、応手後にどの小さい 9 族へ分解されるかは
+`nine_family_response_tables.md` にまとめる。
 
-Respond at the same position `p` in the untouched `MO(n)`.
+この証明本体で必要なのは、応手表が次の性質を満たすことである。
 
-Let
+## 閉包条件
 
-```text
-r = n - p - 1.
-```
+応手表は次の条件を満たす。
 
-After both moves, the state is:
+- 表示された応手位置 `q` は、対応する未着手 gap の内部にある。
+- 表示された応手は合法手である。
+- 着手と応手の後、打たれた `T` 成分は `T` 局面の有限直和へ置き換わる。
+- 置き換わった各成分は、元の `T` 成分より空点数が少ない。
+- `T4(0)` は `T0` と読む。
+- ゼロ長成分は省略する。
 
-```text
-OO(p) + MM(p) + MO(r) + MO(r).
-```
+これらは、`T` 局面の有限直和に対して空点数帰納法を行うために必要な条件である。
 
-Zero-length terms are omitted. Therefore:
+## 合法性の範囲
 
-- if `p = 0`, the child is `T1(r)`;
-- if `r = 0`, the child is `T2(p)`;
-- otherwise, the child is `T2(p) + T1(r)`.
+各 gap における合法手の範囲は次の通りである。
 
-All components have smaller total empty count than the original state.
+- `MO(n)` では `0 <= p <= n - 2`。
+- `OO(n)` では `1 <= p <= n - 2`。
+- `WM(n)` では `1 <= p <= n - 1`。
+- `WO(n)` では `1 <= p <= n - 2`。
+- `MM(n)` では全ての位置が合法である。ただし左右対称性により正規化された半分を見ればよい。
 
-## T2: `OO(n) + MM(n)`
+これらは表示された正規形成分での範囲である。物理的な応手 gap が反転して
+正規化されている場合、実際には反転後の物理座標を用いる。
 
-There are two move types.
-
-### Move in `MM(n)`
-
-For a move at position `p` in `MM(n)`, respond at position `p` in the component
-that came from the untouched `OO(n)`. The responder sees it as `MM(n)`.
-
-Let `r = n - p - 1`. After both moves:
-
-```text
-OO(p) + MM(p) + OO(r) + MM(r).
-```
-
-This decomposes into `T2(p) + T2(r)`, omitting zero terms.
-
-### Move in `OO(n)`
-
-A legal move in `OO(n)` has `1 <= p <= n - 2`. Respond at position `p` in the
-component that came from the untouched `MM(n)`. The responder sees it as
-`OO(n)`.
-
-Let `r = n - p - 1`. After both moves:
-
-```text
-MO(p) + MO(p) + MO(r) + MO(r).
-```
-
-This decomposes into `T1(p) + T1(r)`, omitting zero terms.
-
-## T3: `OO(n) + WM(n)`
-
-There are two move types.
-
-### Move in `WM(n)`
-
-Respond in the component that came from the untouched `OO(n)`. The responder
-sees it as `MM(n)`. Use position
-
-```text
-q = min(p, n - 1 - p).
-```
-
-Equivalently, respond so that the smaller side made in `WM(n)` is matched in
-`OO(n)`.
-
-The response child decomposes into one `T2` component and one smaller `T3`
-component.
-
-More explicitly, let `r = n - p - 1`.
-
-If `p <= r`, then `q = p`, and the child is:
-
-```text
-T3(p) + T2(r).
-```
-
-If `p > r`, then `q = r`, and the child is:
-
-```text
-T2(r) + T3(p).
-```
-
-### Move in `OO(n)`
-
-Respond at `q = p` in the component that came from the untouched `WM(n)`. The
-responder sees it as `WO(n)`.
-
-The response child decomposes into one `T1` component and one smaller `T5`
-component.
-
-With `r = n - p - 1`, the child is:
-
-```text
-T5(p) + T1(r).
-```
-
-## T4: `OO(n) + WM(n + 1)`
-
-There are two move types.
-
-### Move in `OO(n)`
-
-Respond in the component that came from the untouched `WM(n + 1)` gap. The
-responder sees it as `WO(n + 1)`. Use position
-
-```text
-q = n - p.
-```
-
-This is the mirror response `q = u - 1 - p`, where `u = n + 1`.
-
-With `r = n - p - 1`, the child is:
-
-```text
-T1(p) + T6(r).
-```
-
-### Move in `WM(n + 1)`
-
-Let the move position be `p`. Respond in the component that came from the
-untouched `OO(n)` gap. The responder sees it as `MM(n)`. Use:
-
-```text
-q = p - 1           if p <= floor(n / 2)
-q = n - p           if p > floor(n / 2)
-```
-
-In the earlier length-matching notation, these are `right-mirror` in the first
-case and `right-same` in the second case.
-
-Let `r = n - p`. The child is:
-
-```text
-T4(p - 1) + T2(r).
-```
-
-Here `T4(0)` means `WM(1)`, i.e. `T0`, and `T2(0)` is omitted.
-
-## T5: `WO(n) + MO(n)`
-
-There are two move types.
-
-### Move in `WO(n)`
-
-Respond at `q = p` in the component that came from the untouched `MO(n)`. After
-normalization the responder sees it as `MO(n)`.
-
-The response child decomposes into `T1` and `T3` components.
-
-With `r = n - p - 1`, the child is:
-
-```text
-T3(p) + T1(r).
-```
-
-### Move in `MO(n)`
-
-Respond at
-
-```text
-q = n - 1 - p
-```
-
-in the component that came from the untouched `WO(n)`. The responder sees it as
-`WM(n)`.
-
-The response child decomposes into `T2` and `T5` components.
-
-With `r = n - p - 1`, the child is:
-
-```text
-T2(p) + T5(r).
-```
-
-## T6: `WO(n + 1) + MO(n)`
-
-There are two move types.
-
-### Move in `MO(n)`
-
-Respond in the component that came from the untouched `WO(n + 1)` gap. The
-responder sees it as `WM(n + 1)`. Use position
-
-```text
-q = n - p.
-```
-
-This is the mirror response `q = u - 1 - p`, where `u = n + 1`.
-
-With `r = n - p - 1`, the child is:
-
-```text
-T2(p) + T6(r).
-```
-
-### Move in `WO(n + 1)`
-
-Respond at
-
-```text
-q = p - 1
-```
-
-in the component that came from the untouched `MO(n)`. After normalization the
-responder sees it as `MO(n)`. In length-matching notation this is
-`right-mirror`.
-
-Let `r = n - p`. The child is:
-
-```text
-T4(p - 1) + T1(r).
-```
-
-Here `T4(0)` means `WM(1)`, i.e. `T0`.
-
-## T7: `WM(1) + MO(n) + MO(n)`
-
-The component `WM(1)` has no legal move. If `n = 1`, the two `MO(1)`
-components also have no legal move. Thus the state is immediately losing.
-
-Assume `n >= 2`. Any move is in one of the two `MO(n)` components.
-
-Respond in the untouched `MO(n)` as in `T1`, at the same position `p`.
-
-Let `r = n - p - 1`. Since the move in `MO(n)` is legal, `0 <= p <= n - 2`,
-so `r >= 1`.
-
-After both moves, the response child is:
-
-```text
-T0 + OO(p) + MM(p) + MO(r) + MO(r).
-```
-
-Therefore:
-
-- if `p = 0`, the child is `T7(r)`;
-- if `p > 0`, the child is `T8(p) + T1(r)`.
-
-## T8: `WM(1) + OO(n) + MM(n)`
-
-The component `WM(1)` has no legal move. Moves occur in `OO(n)` or `MM(n)`.
-
-Use the same-position response as in `T2`.
-
-### Move in `MM(n)`
-
-Respond at position `p` in the component that came from the untouched `OO(n)`.
-The responder sees it as `MM(n)`.
-
-Let `r = n - p - 1`. After both moves, the response child is:
-
-```text
-T0 + OO(p) + MM(p) + OO(r) + MM(r).
-```
-
-Therefore:
-
-- if `p = 0` and `r = 0`, the child is `T0`;
-- if `p = 0` and `r > 0`, the child is `T8(r)`;
-- if `p > 0` and `r = 0`, the child is `T8(p)`;
-- if `p > 0` and `r > 0`, the child is `T8(p) + T2(r)`.
-
-### Move in `OO(n)`
-
-A legal move in `OO(n)` has `1 <= p <= n - 2`, so both `p` and
-`r = n - p - 1` are positive.
-
-Respond at position `p` in the component that came from the untouched `MM(n)`.
-The responder sees it as `OO(n)`. After both moves, the response child is:
-
-```text
-T0 + MO(p) + MO(p) + MO(r) + MO(r).
-```
-
-This is `T7(p) + T1(r)`.
-
-## Closure Conditions
-
-The response tables above satisfy the following closure conditions:
-
-- every displayed response position `q` is inside the untouched gap;
-- every displayed response is legal;
-- after the move and response, the moved component is replaced by a finite
-  disjoint sum of states in `T`;
-- each replacement component has smaller total empty count than the original
-  moved component;
-- `T4(0)` is interpreted as `T0`;
-- zero-length components are omitted.
-
-These conditions are exactly what is needed for induction on total empty count
-for finite disjoint sums of `T`-states.
-
-## Legality Bounds
-
-The displayed responses satisfy the required bounds under the legal-move
-conditions for each gap:
-
-- in `MO(n)`, legal moves have `0 <= p <= n - 2`;
-- in `OO(n)`, legal moves have `1 <= p <= n - 2`;
-- in `WM(n)`, legal moves have `1 <= p <= n - 1`;
-- in `WO(n)`, legal moves have `1 <= p <= n - 2`;
-- in `MM(n)`, all positions are legal, but by reflection it is enough to check
-  the canonical half.
-
-These bounds are for the displayed canonical component. If the physical
-response gap is reflected before canonicalization, the reflected physical
-coordinate is used, as described above.
-
-For `T4`, a move in `WM(n + 1)` has `1 <= p <= n`. The response is:
+`T4` で `WM(n + 1)` に打たれる場合、合法手は `1 <= p <= n` である。
+応手は次である。
 
 ```text
 q = p - 1       if p <= floor(n / 2)
 q = n - p       if p > floor(n / 2).
 ```
 
-In both cases `0 <= q <= n - 1`, so the response lies in the untouched
-`OO(n)` gap.
+どちらの場合も `0 <= q <= n - 1` なので、対応する `OO(n)` 成分の内部に
+応手できる。
 
-For `T6`, a move in `WO(n + 1)` has `1 <= p <= n - 1`. The response
+`T6` で `WO(n + 1)` に打たれる場合、合法手は `1 <= p <= n - 1` である。
+応手
 
 ```text
 q = p - 1
 ```
 
-satisfies `0 <= q <= n - 2`, so it lies in the untouched `MO(n)` gap.
+は `0 <= q <= n - 2` を満たすので、対応する `MO(n)` 成分の内部にある。
 
-## Induction Form
+## 帰納法
 
-Let `E(S)` be the total number of empty points in a state `S`.
+局面 `S` の空点総数を `E(S)` とする。
 
-Use the following stronger statement.
+次の強い主張を示す。
 
 ```text
-Q(e): every finite disjoint sum of T-states with total empty count e is losing.
+Q(e): 空点総数 e の T 局面の有限直和は、全て手番プレイヤー負けである。
 ```
 
-The proof proceeds by induction on `e`.
+`e` に関する帰納法で証明する。
 
-Take a state
+次の形の局面を取る。
 
 ```text
 S = C1 + ... + Ck
 ```
 
-where every `Ci` belongs to `T`. If all components are `T0`, there is no legal
-move.
+各 `Ci` は `T` に属するとする。全ての成分が `T0` なら、合法手は存在しない。
 
-Otherwise, any legal move occurs inside one `T`-component, say `Ci`. Use the
-response specified in the table for the family containing `Ci`; the response is
-also played inside `Ci`, although it may be in a different gap of that
-`T`-component. After the move and response, the turn returns to the original
-orientation. Therefore all untouched `T`-components `Cj (j != i)` have the same
-relative boundary labels as before, while `Ci` has been replaced by a finite
-disjoint sum of `T`-states. The total empty count has decreased by two, so the
-resulting state satisfies the induction hypothesis and is losing for the next
-player.
+そうでなければ、任意の合法手はある 1 つの `T` 成分 `Ci` の内部で打たれる。
+`Ci` の属する族に対して応手表で指定された応手を使う。この応手も同じ
+`T` 成分 `Ci` の内部で打つ。ただし、`Ci` の中の別の gap に打つ場合はある。
 
-Thus every first move from `S` can be answered by a move to a smaller losing
-state. Hence `S` is losing. Applying this to the one-component sums proves
-that each state in `T0..T8` is losing.
+着手と応手の 2 手後、手番の向きは元に戻る。したがって、触られていない
+`T` 成分 `Cj (j != i)` の相対境界は元のままである。一方、`Ci` は
+応手表により、より小さい `T` 局面の有限直和へ置き換わる。空点総数は 2
+減っているので、帰納法の仮定により、応手後の局面は次の手番プレイヤーの
+負けである。
 
-This is the required disjoint-sum step for this normal-play setting. The
-important point is that the response is always made in the same `T`-component
-where the first move occurred, so all other `T`-components are flipped twice
-and return to their original relative labels.
+よって、`S` からの任意の初手は、より小さい負け局面へ移す応手を持つ。
+したがって `S` は負けである。特に 1 成分だけの直和を考えれば、`T0..T8`
+の各局面が負けであることが従う。
 
-## Consequence for `P(s)`
+この直和に対する帰納法が重要である。応手は必ず、最初の手が打たれた
+同じ `T` 成分の中で行う。そのため、他の `T` 成分は 2 回色が反転し、
+相対境界が元に戻る。
 
-The near-balanced state `P(s)` is one of the nine families:
+## `P(s)` への帰結
+
+近均衡局面 `P(s)` は 9 族の一部である。
 
 ```text
 P(2n)     = WO(n) + MO(n)       = T5(n)
 P(2n + 1) = WO(n + 1) + MO(n)   = T6(n).
 ```
 
-Therefore, the nine-family theorem implies that `P(s)` is losing for every
-`s >= 2`.
+したがって、9 族負け定理から、全ての `s >= 2` について `P(s)` は負けである。
 
-Consequently, for `m >= 3`, the one-gap state
+よって、`m >= 3` では、単独 gap 局面
 
 ```text
 Gap(m, opponent, wall)
 ```
 
-is winning for the player to move: play near the center so that the opponent
-receives `P(m - 1)`.
+は手番プレイヤー勝ちである。中央寄りに打つことで、相手へ `P(m - 1)` を
+渡せるからである。
 
-For the initial near-edge move, however, one must not discard the one-cell edge
-gap. If Black opens at `i = 1`, then White sees:
+ただし、初手 `i = 1` の証明では、端側に残る 1 マス gap を捨ててはならない。
+黒が `i = 1` に初手を打つと、白番では
 
 ```text
 WO(1) + WO(N - 2)
 ```
 
-up to reflection. White plays in the large `WO(N - 2)` gap at the near-center
-position `p = ceil((N - 3) / 2)`. After the turn pass, Black receives:
+になる。白は大きい `WO(N - 2)` gap の中央寄り
+`p = ceil((N - 3) / 2)` に打つ。手番交代後、黒は
 
 ```text
 WM(1) + WO(ceil((N - 3) / 2)) + MO(floor((N - 3) / 2)).
 ```
 
-This is `T0 + T5` when `N - 3` is even, and `T0 + T6` when `N - 3` is odd.
-The strengthened finite-sum theorem therefore makes it losing for Black.
+を受け取る。これは `N - 3` が偶数なら `T0 + T5`、奇数なら `T0 + T6` である。
+有限直和に強めた 9 族定理により、これは黒番負けである。
 
-By reflection, the same argument applies to `i = N - 2`. Thus the nine-family
-theorem proves the near-edge losing rule:
+左右対称性により `i = N - 2` も同じである。したがって、9 族定理から
+近端初手の負けが従う。
 
 ```text
-initial moves i = 1 and i = N - 2 are losing for N >= 5.
+N >= 5 では、初手 i = 1 および i = N - 2 は負け手である。
 ```
 
-It does not prove the full observed classification for all first moves.
+これは全ての初手分類を証明するものではない。残りの初手が勝ち手であることは、
+別途 `A(a,b)` 型の分類として扱う。

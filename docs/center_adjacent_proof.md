@@ -1,88 +1,89 @@
-# Odd Center-Adjacent Losing Theorem
+# 奇数盤面の中央隣初手が負けであること
 
-This note proves the observed losing rule for the first moves adjacent to the
-center on odd boards, in the reduced gap game.
+この文書では、奇数盤面で中央の左右隣に打つ初手が負け手であることを、
+空き区間ゲームで証明する。
 
-## Statement
+## 主張
 
-Let the board length be `N = 2k + 1` with `k >= 2`. If Black opens at `k - 1`
-or `k + 1`, then the move is losing.
+盤面長を `N = 2k + 1`, `k >= 2` とする。黒が初手で `k - 1` または
+`k + 1` に打つと、その手は負け手である。
 
-By reflection it is enough to consider the first move `k - 1`.
+左右対称性により、`k - 1` への初手だけを考えればよい。
 
-After this move, White sees:
+この手の後、白番局面は次の 2-gap 状態になる。
 
 ```text
 WO(k - 1) + WO(k + 1).
 ```
 
-White responds at the reflected point `k + 1`. In the larger `WO(k + 1)` gap,
-this is the canonical coordinate `k - 1`. After the turn pass, Black receives:
+白は反転位置 `k + 1` に応手する。大きい `WO(k + 1)` gap の正規化座標では、
+これは `k - 1` に対応する。手番交代後、黒は次の局面を受け取る。
 
 ```text
 R(k - 1) = MO(1) + WM(k - 1) + WO(k - 1).
 ```
 
-It remains to prove that `R(a)` is losing for every `a >= 1`.
+したがって、全ての `a >= 1` について `R(a)` が負けであることを示せばよい。
 
-## The `R(a)` Lemma
+## `R(a)` 補題
 
-Define:
+次を定義する。
 
 ```text
 R(a) = MO(1) + WM(a) + WO(a).
 ```
 
-Then `R(a)` is losing for every `a >= 1`.
+このとき、全ての `a >= 1` について `R(a)` は手番プレイヤー負けである。
 
-Proof is by induction on `a`.
+`a` に関する帰納法で証明する。
 
-For `a = 1`, all three components have no legal move:
+`a = 1` では、3 つの成分はいずれも合法手を持たない。
 
-- `MO(1)` is adjacent to an opponent boundary;
-- `WM(1)` is adjacent to a wall boundary;
-- `WO(1)` is adjacent to both a wall and an opponent boundary.
+- `MO(1)` は相手境界に隣接している。
+- `WM(1)` は壁境界に隣接している。
+- `WO(1)` は壁境界と相手境界の両方に隣接している。
 
-Thus `R(1)` is losing.
+したがって `R(1)` は負けである。
 
-Assume `a >= 2`.
+以下、`a >= 2` とする。
 
-The component `MO(1)` has no legal move. Therefore a legal move is in either
-`WM(a)` or `WO(a)`.
+`MO(1)` には合法手がない。したがって、合法手は `WM(a)` または `WO(a)` に
+打たれる。
 
-### Move in `WM(a)`
+### `WM(a)` に打たれた場合
 
-A legal move in `WM(a)` has `1 <= p <= a - 1`.
+`WM(a)` の合法手は `1 <= p <= a - 1` を満たす。
 
-Respond in the paired `WO(a)` component at the same canonical position `p`.
-After the move and response, the child is:
+対応する `WO(a)` 成分の同じ正規化座標 `p` に応手する。着手と応手の後、
+局面は次の形になる。
 
 ```text
 R(p) + T2(a - p - 1).
 ```
 
-Here `T2(0)` is omitted. Since `p < a`, the `R(p)` component is smaller, and
-`T2` is losing by the nine-family theorem.
+ここで `T2(0)` は省略する。`p < a` なので `R(p)` はより小さい。
+また `T2` は 9 族負け定理により負けである。
 
-### Move in `WO(a)`
+### `WO(a)` に打たれた場合
 
-A legal move in `WO(a)` has `1 <= p <= a - 2`.
+`WO(a)` の合法手は `1 <= p <= a - 2` を満たす。
 
-Respond in the paired `WM(a)` component at the same canonical position `p`.
-After the move and response, the child is:
+対応する `WM(a)` 成分の同じ正規化座標 `p` に応手する。着手と応手の後、
+局面は次の形になる。
 
 ```text
 R(p) + T1(a - p - 1).
 ```
 
-Again `p < a`, so `R(p)` is smaller, and `T1` is losing by the nine-family
-theorem.
+ここでも `p < a` なので `R(p)` はより小さい。また `T1` は 9 族負け定理に
+より負けである。
 
-Thus every legal move from `R(a)` can be answered by a move to a finite sum of
-smaller losing states. Therefore `R(a)` is losing for every `a >= 1`.
+以上より、`R(a)` からの任意の合法手には、より小さい負け局面の有限直和へ
+移す応手がある。したがって、全ての `a >= 1` について `R(a)` は負けである。
 
-Consequently, White's reflected response to the first move `k - 1` sends Black
-to `R(k - 1)`, a losing state. The first move `k - 1` is losing. By reflection,
-the first move `k + 1` is also losing.
+よって、黒の初手 `k - 1` に対する白の反転応手は、黒を負け局面
+`R(k - 1)` へ送る。したがって `k - 1` への初手は負け手である。
+左右対称性により、`k + 1` への初手も負け手である。
 
-This proves the odd center-adjacent losing rule for every odd `N >= 5`.
+これで、全ての奇数 `N >= 5` について、中央隣初手が負け手であることが
+証明された。
